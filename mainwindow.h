@@ -20,9 +20,13 @@ public:
 private slots:
     void on_actionOpen_triggered();
     void videoLoaded();
+    void loadFailed(QString msg);
+    void setFrames(int64_t count);
 
 private:
     Ui::MainWindow *ui;
     VideoProcessor proc;
+
+    void resetUI();
 };
 #endif // MAINWINDOW_H

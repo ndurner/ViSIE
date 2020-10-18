@@ -12,6 +12,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     connect(&proc, &VideoProcessor::loadSuccess, this, &MainWindow::videoLoaded);
+    connect(&proc, &VideoProcessor::loadError, this, &MainWindow::loadFailed);
+    connect(&proc, &VideoProcessor::frameCount, this, &MainWindow::setFrames);
 }
 
 MainWindow::~MainWindow()
@@ -40,4 +42,21 @@ void MainWindow::on_actionOpen_triggered()
 void MainWindow::videoLoaded()
 {
     statusBar()->showMessage("Video loaded");
+}
+
+void MainWindow::loadFailed(QString msg)
+{
+    statusBar()->showMessage("Loading video failed: " + msg);
+    resetUI();
+}
+
+void MainWindow::setFrames(int64_t count)
+{
+    ui->frameSlider->setMaximum(count);
+    ui->frameSlider->setEnabled(true);
+}
+
+void MainWindow::resetUI()
+{
+    ui->frameSlider->setEnabled(false);
 }
