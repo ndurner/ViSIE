@@ -1,6 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "videoprocessor.h"
+
 #include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
@@ -15,7 +17,12 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private slots:
+    void on_actionOpen_triggered();
+    void videoLoaded();
+
 private:
     Ui::MainWindow *ui;
+    VideoProcessor proc;
 };
 #endif // MAINWINDOW_H
