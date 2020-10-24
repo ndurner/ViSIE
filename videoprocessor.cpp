@@ -36,7 +36,7 @@ void VideoProcessor::loadVideo(QString fn)
         }
 
         // report number of frames
-        emit frameCount(ctx->streams[videoStrm]->nb_frames);
+        emit streamLength(ctx->streams[videoStrm]->duration);
 
         // success!
         emit loadSuccess();

@@ -13,7 +13,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(&proc, &VideoProcessor::loadSuccess, this, &MainWindow::videoLoaded);
     connect(&proc, &VideoProcessor::loadError, this, &MainWindow::loadFailed);
-    connect(&proc, &VideoProcessor::frameCount, this, &MainWindow::setFrames);
+    connect(&proc, &VideoProcessor::streamLength, this, &MainWindow::setFrames);
 }
 
 MainWindow::~MainWindow()

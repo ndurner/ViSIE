@@ -19,7 +19,7 @@ public:
 signals:
     void loadSuccess();
     void loadError(QString msg);
-    void frameCount(int64_t count);
+    void streamLength(int64_t count);
 
 protected:
     AVFormatContext* ctx;
