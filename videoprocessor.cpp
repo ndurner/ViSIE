@@ -87,29 +87,55 @@ void VideoProcessor::present(uint64_t pts)
     std::unique_ptr<AVPacket, std::function<void(AVPacket *)>> packet(av_packet_alloc(), [] (AVPacket *p) {
         av_packet_free(&p);
     });
-    std::unique_ptr<AVFrame, std::function<void(AVFrame *)>> frame(av_frame_alloc(), [] (AVFrame *f) {
-        av_frame_free(&f);
-    });
 
-    const auto frm = frame.get();
-
-    if (av_seek_frame(ctx, videoStrm, pts, 0) < 0) {
+    // seek to keyframe
+    if (av_seek_frame(ctx, videoStrm, pts, AVSEEK_FLAG_BACKWARD) < 0) {
         qWarning() << "cannot seek to frame" << pts;
         return;
     }
 
-    do {
-        if (av_read_frame(ctx, packet.get()) < 0) {
-            qWarning() << "error reading frame";
-            return;
-        }
-
+    // work towards target (intra)frame
+    AVFrame *frmBuf[2] = {av_frame_alloc(), av_frame_alloc()};
+    AVFrame *frm;
+    int frmIdx = 0;
+    bool found = false;
+    while (av_read_frame(ctx, packet.get()) == 0 && !found) {
         if (packet->stream_index == videoStrm) {
             avcodec_send_packet(codecCtx, packet.get());
-            rcErr = avcodec_receive_frame(codecCtx, frm);
-        }
-    } while (rcErr == AVERROR(EAGAIN));
 
+            frm = frmBuf[frmIdx];
+            while (avcodec_receive_frame(codecCtx, frmBuf[frmIdx]) == 0 && !found) {
+                if (frm->pts > pts) {
+                    // overshot, use last frame
+                    frmIdx--;
+                    if (frmIdx < 0)
+                        frmIdx = 1;
+
+                    found = true;
+                    break;
+                }
+                else if (pts == 0) {
+                    // target hit
+                    found = true;
+                    break;
+                }
+                else {
+                    // need to decode more
+                    frmIdx++;
+                    if (frmIdx == 2)
+                        frmIdx = 0;
+                }
+            }
+        }
+    }
+
+    if (frm->format == -1) {
+        av_frame_free(&frmBuf[0]);
+        av_frame_free(&frmBuf[1]);
+        return;
+    }
+
+    // create RGB image for presentation
     auto fmt = static_cast<AVPixelFormat>(frm->format);
     if (!cnvCtx) {
         cnvCtx = sws_getContext(frm->width, frm->height, fmt, width, height,
@@ -124,6 +150,9 @@ void VideoProcessor::present(uint64_t pts)
 
     auto actualHeight = sws_scale(cnvCtx, frm->data, frm->linesize, 0,
                                   frm->height, &outBuf, dstStride);
+
+    av_frame_free(&frmBuf[0]);
+    av_frame_free(&frmBuf[1]);
 
     emit imgReady(QImage(outBuf, width, actualHeight, *dstStride, QImage::Format_RGB888,
                          [](void *buf) {
