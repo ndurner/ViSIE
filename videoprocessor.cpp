@@ -139,7 +139,7 @@ void VideoProcessor::present(uint64_t pts)
     auto fmt = static_cast<AVPixelFormat>(frm->format);
     if (!cnvCtx) {
         cnvCtx = sws_getContext(frm->width, frm->height, fmt, width, height,
-                               AV_PIX_FMT_RGB24, SWS_FAST_BILINEAR,
+                               AV_PIX_FMT_RGB24, SWS_POINT,
                                nullptr, nullptr, nullptr);
         Q_ASSERT(cnvCtx);
     }
