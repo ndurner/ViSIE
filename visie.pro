@@ -25,7 +25,8 @@ INCLUDEPATH += \
 
 LIBS += \
     -L/usr/local/lib \
-    -lavformat
+    -lavformat \
+    -lswscale
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

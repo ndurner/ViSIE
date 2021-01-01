@@ -22,11 +22,13 @@ private slots:
     void videoLoaded();
     void loadFailed(QString msg);
     void setFrames(int64_t count);
+    void showImg(QImage img);
 
 private:
     Ui::MainWindow *ui;
     VideoProcessor proc;
 
     void resetUI();
+    void resizeEvent(QResizeEvent *);
 };
 #endif // MAINWINDOW_H
