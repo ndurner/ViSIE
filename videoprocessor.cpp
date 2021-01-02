@@ -7,6 +7,7 @@ VideoProcessor::VideoProcessor(QObject *parent) : QObject(parent)
 {
     ctx = nullptr;
     cnvCtx = nullptr;
+    codecCtx = nullptr;
     width = height = 0;
 }
 
