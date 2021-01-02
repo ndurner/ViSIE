@@ -35,6 +35,11 @@ protected:
     AVCodecContext *codecCtx;
     SwsContext *cnvCtx;
 
+    struct Frame {
+        AVFrame *frm;
+        Frame *other;
+    } frmBuf[2];
+
     void cleanup();
 };
 

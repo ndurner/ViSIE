@@ -9,6 +9,11 @@ VideoProcessor::VideoProcessor(QObject *parent) : QObject(parent)
     cnvCtx = nullptr;
     codecCtx = nullptr;
     width = height = 0;
+
+    frmBuf[0].frm = nullptr;
+    frmBuf[1].frm = nullptr;
+    frmBuf[0].other = &frmBuf[1];
+    frmBuf[1].other = &frmBuf[0];
 }
 
 VideoProcessor::~VideoProcessor()
@@ -21,6 +26,9 @@ void VideoProcessor::setDimensions(int width, int height)
     if (width != this->width || height != this->height) {
         sws_freeContext(cnvCtx);
         cnvCtx = nullptr;
+
+        av_frame_free(&frmBuf[0].frm);
+        av_frame_free(&frmBuf[1].frm);
 
         this->width = width;
         this->height = height;
@@ -66,6 +74,9 @@ void VideoProcessor::loadVideo(QString fn)
         if (avcodec_open2(codecCtx, videoCodec, nullptr) < 0)
             throw QString("cannot open codec {0}").arg(videoCodec->long_name);
 
+        frmBuf[0].frm = av_frame_alloc();
+        frmBuf[1].frm = av_frame_alloc();
+
         // success!
         emit loadSuccess();
     }
@@ -96,22 +107,18 @@ void VideoProcessor::present(uint64_t pts)
     }
 
     // work towards target (intra)frame
-    AVFrame *frmBuf[2] = {av_frame_alloc(), av_frame_alloc()};
     AVFrame *frm;
-    int frmIdx = 0;
+    Frame *curFrm = &frmBuf[0];
     bool found = false;
     while (av_read_frame(ctx, packet.get()) == 0 && !found) {
         if (packet->stream_index == videoStrm) {
             avcodec_send_packet(codecCtx, packet.get());
 
-            frm = frmBuf[frmIdx];
-            while (avcodec_receive_frame(codecCtx, frmBuf[frmIdx]) == 0 && !found) {
+            frm = curFrm->frm;
+            while (avcodec_receive_frame(codecCtx, frm) == 0 && !found) {
                 if (frm->pts > pts) {
                     // overshot, use last frame
-                    frmIdx--;
-                    if (frmIdx < 0)
-                        frmIdx = 1;
-
+                    curFrm = curFrm->other;
                     found = true;
                     break;
                 }
@@ -122,17 +129,13 @@ void VideoProcessor::present(uint64_t pts)
                 }
                 else {
                     // need to decode more
-                    frmIdx++;
-                    if (frmIdx == 2)
-                        frmIdx = 0;
+                    curFrm = curFrm->other;
                 }
             }
         }
     }
 
     if (frm->format == -1) {
-        av_frame_free(&frmBuf[0]);
-        av_frame_free(&frmBuf[1]);
         return;
     }
 
@@ -152,9 +155,6 @@ void VideoProcessor::present(uint64_t pts)
     auto actualHeight = sws_scale(cnvCtx, frm->data, frm->linesize, 0,
                                   frm->height, &outBuf, dstStride);
 
-    av_frame_free(&frmBuf[0]);
-    av_frame_free(&frmBuf[1]);
-
     emit imgReady(QImage(outBuf, width, actualHeight, *dstStride, QImage::Format_RGB888,
                          [](void *buf) {
                             delete [] static_cast<uint8_t *>(buf);
@@ -170,4 +170,7 @@ void VideoProcessor::cleanup()
         avcodec_free_context(&codecCtx);
     if (cnvCtx)
         sws_freeContext(cnvCtx);
+
+    av_frame_free(&frmBuf[0].frm);
+    av_frame_free(&frmBuf[1].frm);
 }
