@@ -2,6 +2,9 @@
 
 #include <QDebug>
 #include <memory>
+#include <libheif/heif.h>
+
+#include "scopedresource.h"
 
 VideoProcessor::VideoProcessor(QObject *parent) : QObject(parent)
 {
@@ -108,7 +111,7 @@ void VideoProcessor::present(uint64_t pts)
 
     // work towards target (intra)frame
     AVFrame *frm;
-    Frame *curFrm = &frmBuf[0];
+    curFrm = &frmBuf[0];
     bool found = false;
     while (av_read_frame(ctx, packet.get()) == 0 && !found) {
         if (packet->stream_index == videoStrm) {
@@ -135,6 +138,7 @@ void VideoProcessor::present(uint64_t pts)
         }
     }
 
+    frm = curFrm->frm;
     if (frm->format == -1) {
         return;
     }
@@ -159,7 +163,94 @@ void VideoProcessor::present(uint64_t pts)
                          [](void *buf) {
                             delete [] static_cast<uint8_t *>(buf);
                          },
-                         outBuf));
+    outBuf));
+}
+
+void VideoProcessor::saveFrame()
+{
+    ScopedResource<heif_context, int> hCtx(
+        [](heif_context *&ctx, int &){
+            ctx = heif_context_alloc();
+        },
+        [](heif_context *ctx, int) {
+            heif_context_free(ctx);
+        });
+    ScopedResource<heif_encoder, heif_error> encPtr(
+        [&](heif_encoder *&enc, heif_error &err) {
+            err = heif_context_get_encoder_for_format(hCtx.get(), heif_compression_HEVC, &enc);
+        },
+        [](heif_encoder *enc, heif_error err) {
+            if (err.code == heif_error_Ok)
+                heif_encoder_release(enc);
+        }
+    );
+
+    if (encPtr.error().code != heif_error_Ok) {
+        qCritical() << "encoder creation failed:" << encPtr.error().message;
+        return;
+    }
+
+    // set quality
+    const auto enc = encPtr.get();
+    auto err = heif_encoder_set_lossless(enc, 1);
+    if (err.code != heif_error_Ok) {
+        qWarning() << "cannot enable lossless processing";
+
+        err = heif_encoder_set_lossy_quality(enc, 100);
+        if (err.code != heif_error_Ok) {
+            qCritical() << "cannot configure quality level to encoder";
+            return;
+        }
+    }
+
+    // prepare color settings
+    heif_colorspace cs;
+    heif_chroma chroma;
+    heif_channel channels[3];
+    int widths[3], heights[3], depths[3];
+    int n_channels;
+    setHeifColor(cs, chroma, n_channels, channels, depths, widths, heights);
+
+    // image
+    ScopedResource<heif_image, heif_error> img(
+        [&] (heif_image *&img, heif_error &err) {
+            err = heif_image_create(curFrm->frm->width, curFrm->frm->height, cs, chroma, &img);
+        },
+        [] (heif_image *img, const heif_error &err) {
+            if (err.code != heif_error_Ok)
+                heif_image_release(img);
+        }
+    );
+
+    for (int i = 0; i < n_channels; i++) {
+        int stride;
+        heif_image_add_plane(img.get(), channels[i], widths[i], heights[i], depths[i]);
+        auto planeData = heif_image_get_plane(img.get(), channels[i], &stride);
+        for (int h = 0; h < heights[i]; h++) {
+            memcpy(planeData + (stride * h), curFrm->frm->data[i] + (curFrm->frm->linesize[i] * h),
+                   stride);
+        }
+    }
+
+    // encode
+    ScopedResource<heif_image_handle, heif_error> imgH(
+        [&](heif_image_handle *&imgH, heif_error &err) {
+            err = heif_context_encode_image(hCtx.get(), img.get(), encPtr.get(), nullptr, &imgH);
+        },
+        [](heif_image_handle *imgH, const heif_error &err) {
+            if (err.code != heif_error_Ok)
+                heif_image_handle_release(imgH);
+        });
+    if (imgH.error().code != heif_error_Ok) {
+        qCritical() << "encoder error:" << imgH.error().message;
+        return;
+    }
+
+    err = heif_context_write_to_file(hCtx.get(), "/tmp/visie.heic");
+    if (err.code != heif_error_Ok) {
+        qCritical() << "error writing image:" << err.message;
+        return;
+    }
 }
 
 void VideoProcessor::cleanup()
@@ -173,4 +264,32 @@ void VideoProcessor::cleanup()
 
     av_frame_free(&frmBuf[0].frm);
     av_frame_free(&frmBuf[1].frm);
+}
+
+void VideoProcessor::setHeifColor(heif_colorspace &space, heif_chroma &chroma, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[])
+{
+    switch(curFrm->frm->format) {
+        case AV_PIX_FMT_YUVJ420P:
+            n_channels = 3;
+            space = heif_colorspace_YCbCr;
+            chroma = heif_chroma_420;
+            channels[0] = heif_channel_Y;
+            depths[0] = 8;
+            widths[0] = curFrm->frm->width;
+            heights[0] = curFrm->frm->height;
+            channels[1] = heif_channel_Cb;
+            depths[1] = 8;
+            widths[1] = (curFrm->frm->width + 1) / 2;
+            heights[1] = (curFrm->frm->height + 1) / 2;
+            channels[2] = heif_channel_Cr;
+            depths[2] = depths[1];
+            widths[2] = widths[1];
+            heights[2] = heights[1];
+            break;
+        default:
+            n_channels = 0;
+            space = heif_colorspace_undefined;
+            chroma = heif_chroma_undefined;
+            break;
+    }
 }

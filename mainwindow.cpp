@@ -93,3 +93,8 @@ void MainWindow::resizeEvent(QResizeEvent *)
         proc.present(ui->frameSlider->value());
     }
 }
+
+void MainWindow::on_actionSave_triggered()
+{
+    proc.saveFrame();
+}

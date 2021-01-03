@@ -24,6 +24,8 @@ private slots:
     void setFrames(int64_t count);
     void showImg(QImage img);
 
+    void on_actionSave_triggered();
+
 private:
     Ui::MainWindow *ui;
     VideoProcessor proc;

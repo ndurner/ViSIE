@@ -11,10 +11,12 @@ CONFIG += c++11
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
+    scopedresource.cpp \
     videoprocessor.cpp
 
 HEADERS += \
     mainwindow.h \
+    scopedresource.h \
     videoprocessor.h
 
 FORMS += \
@@ -26,7 +28,8 @@ INCLUDEPATH += \
 LIBS += \
     -L/usr/local/lib \
     -lavformat \
-    -lswscale
+    -lswscale \
+    -lheif
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

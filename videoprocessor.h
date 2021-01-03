@@ -7,6 +7,7 @@
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libheif/heif.h>
 }
 
 class VideoProcessor : public QObject
@@ -27,6 +28,7 @@ signals:
 
 public slots:
     void present(uint64_t pts);
+    void saveFrame();
 
 protected:
     int width, height;
@@ -39,8 +41,10 @@ protected:
         AVFrame *frm;
         Frame *other;
     } frmBuf[2];
+    Frame *curFrm;
 
     void cleanup();
+    void setHeifColor(heif_colorspace &space, heif_chroma &chroma, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[]);
 };
 
 #endif // VIDEOPROCESSOR_H
