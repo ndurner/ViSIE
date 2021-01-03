@@ -163,7 +163,7 @@ void VideoProcessor::present(uint64_t pts)
                          [](void *buf) {
                             delete [] static_cast<uint8_t *>(buf);
                          },
-    outBuf));
+                        outBuf));
 }
 
 void VideoProcessor::saveFrame()
