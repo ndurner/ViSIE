@@ -110,22 +110,21 @@ void VideoProcessor::present(uint64_t pts)
     }
 
     // work towards target (intra)frame
-    AVFrame *frm;
     curFrm = &frmBuf[0];
     bool found = false;
     while (av_read_frame(ctx, packet.get()) == 0 && !found) {
         if (packet->stream_index == videoStrm) {
             avcodec_send_packet(codecCtx, packet.get());
 
-            frm = curFrm->frm;
-            while (avcodec_receive_frame(codecCtx, frm) == 0 && !found) {
-                if (frm->pts > pts) {
+            while (avcodec_receive_frame(codecCtx, curFrm->frm) == 0 && !found) {
+                const auto curPts = curFrm->frm->pts;
+                if (curPts > pts) {
                     // overshot, use last frame
                     curFrm = curFrm->other;
                     found = true;
                     break;
                 }
-                else if (pts == 0) {
+                else if (curPts == pts) {
                     // target hit
                     found = true;
                     break;
@@ -138,7 +137,7 @@ void VideoProcessor::present(uint64_t pts)
         }
     }
 
-    frm = curFrm->frm;
+    const auto frm = curFrm->frm;
     if (frm->format == -1) {
         return;
     }
