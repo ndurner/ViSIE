@@ -103,6 +103,9 @@ void VideoProcessor::present(uint64_t pts)
         av_packet_free(&p);
     });
 
+    frmBuf[0].frm->pts = -1;
+    frmBuf[1].frm->pts = -1;
+
     // seek to keyframe
     if (av_seek_frame(ctx, videoStrm, pts, AVSEEK_FLAG_BACKWARD) < 0) {
         qWarning() << "cannot seek to frame" << pts;
@@ -120,8 +123,10 @@ void VideoProcessor::present(uint64_t pts)
             while (avcodec_receive_frame(codecCtx, curFrm->frm) == 0 && !found) {
                 const auto curPts = curFrm->frm->pts;
                 if (curPts > pts) {
-                    // overshot, use last frame
-                    curFrm = curFrm->other;
+                    // overshot, use last frame if available
+                    if (curFrm->other->frm->pts != -1) {
+                        curFrm = curFrm->other;
+                    }
                     found = true;
                     break;
                 }
