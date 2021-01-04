@@ -108,6 +108,7 @@ void VideoProcessor::present(uint64_t pts)
         qWarning() << "cannot seek to frame" << pts;
         return;
     }
+    avcodec_flush_buffers(codecCtx);
 
     // work towards target (intra)frame
     curFrm = &frmBuf[0];

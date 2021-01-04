@@ -28,6 +28,7 @@ INCLUDEPATH += \
 LIBS += \
     -L/usr/local/lib \
     -lavformat \
+    -lavcodec \
     -lswscale \
     -lheif
 
