@@ -224,13 +224,16 @@ void VideoProcessor::saveFrame()
         }
     }
 
+    // prepare color profile
+    std::unique_ptr<heif_color_profile_nclx> cp(new heif_color_profile_nclx);
+
     // prepare color settings
     heif_colorspace cs;
     heif_chroma chroma;
     heif_channel channels[3];
     int widths[3], heights[3], depths[3];
     int n_channels;
-    setHeifColor(cs, chroma, n_channels, channels, depths, widths, heights);
+    setHeifColor(cs, chroma, cp.get(), n_channels, channels, depths, widths, heights);
 
     // image
     ScopedResource<heif_image, heif_error> img(
@@ -242,6 +245,11 @@ void VideoProcessor::saveFrame()
                 heif_image_release(img);
         }
     );
+    auto perr = heif_image_set_nclx_color_profile(img.get(), cp.get());
+    if (perr.code != heif_error_Ok) {
+        qCritical() << "setting color profile failed:" << perr.message;
+        return;
+    }
 
     for (int i = 0; i < n_channels; i++) {
         int stride;
@@ -317,10 +325,103 @@ void VideoProcessor::cleanup()
     av_frame_free(&frmBuf[1].frm);
 }
 
-void VideoProcessor::setHeifColor(heif_colorspace &space, heif_chroma &chroma, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[])
+void VideoProcessor::setHeifColor(heif_colorspace &space, heif_chroma &chroma, heif_color_profile_nclx *cp, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[])
 {
-    switch(curFrm->frm->format) {
+    const heif_color_primaries prim[] = {
+        heif_color_primaries_unspecified,               // AVCOL_PRI_RESERVED0
+        heif_color_primaries_ITU_R_BT_709_5,            // AVCOL_PRI_BT709
+        heif_color_primaries_unspecified,               // AVCOL_PRI_UNSPECIFIED
+        heif_color_primaries_unspecified,               // AVCOL_PRI_RESERVED
+        heif_color_primaries_ITU_R_BT_470_6_System_B_G, // AVCOL_PRI_BT470BG
+        heif_color_primaries_SMPTE_240M,                // AVCOL_PRI_SMPTE170M
+        heif_color_primaries_SMPTE_240M,                // AVCOL_PRI_SMPTE240M
+        heif_color_primaries_generic_film,              // AVCOL_PRI_FILM
+        heif_color_primaries_ITU_R_BT_2020_2_and_2100_0, // AVCOL_PRI_BT2020
+        heif_color_primaries_SMPTE_ST_428_1,            // AVCOL_PRI_SMPTE428
+        heif_color_primaries_SMPTE_ST_428_1,            // AVCOL_PRI_SMPTEST428_1
+        heif_color_primaries_SMPTE_RP_431_2,            // AVCOL_PRI_SMPTE431
+        heif_color_primaries_SMPTE_EG_432_1,            // AVCOL_PRI_SMPTE432
+        heif_color_primaries_EBU_Tech_3213_E,           // AVCOL_PRI_EBU3213
+        heif_color_primaries_EBU_Tech_3213_E            // AVCOL_PRI_JEDEC_P22
+    };
+
+    const heif_matrix_coefficients coeff[] {
+        heif_matrix_coefficients_RGB_GBR,
+        heif_matrix_coefficients_ITU_R_BT_709_5,
+        heif_matrix_coefficients_unspecified,
+        heif_matrix_coefficients_unspecified,
+        heif_matrix_coefficients_US_FCC_T47,
+        heif_matrix_coefficients_ITU_R_BT_470_6_System_B_G,
+        heif_matrix_coefficients_SMPTE_240M,
+        heif_matrix_coefficients_SMPTE_240M,
+        heif_matrix_coefficients_YCgCo,
+        heif_matrix_coefficients_YCgCo,
+        heif_matrix_coefficients_chromaticity_derived_non_constant_luminance,
+        heif_matrix_coefficients_ITU_R_BT_2020_2_constant_luminance,
+        heif_matrix_coefficients_SMPTE_ST_2085,
+        heif_matrix_coefficients_chromaticity_derived_non_constant_luminance,
+        heif_matrix_coefficients_chromaticity_derived_constant_luminance,
+        heif_matrix_coefficients_ICtCp
+    };
+
+    const heif_transfer_characteristics trans[] = {
+        heif_transfer_characteristic_unspecified,               // AVCOL_TRC_RESERVED0
+        heif_transfer_characteristic_ITU_R_BT_709_5,
+        heif_transfer_characteristic_unspecified,               // AVCOL_TRC_UNSPECIFIED
+        heif_transfer_characteristic_unspecified,               // AVCOL_TRC_RESERVED
+        heif_transfer_characteristic_ITU_R_BT_470_6_System_M,   // AVCOL_TRC_GAMMA22
+        heif_transfer_characteristic_ITU_R_BT_470_6_System_B_G, // AVCOL_TRC_GAMMA28
+        heif_transfer_characteristic_ITU_R_BT_601_6,            // AVCOL_TRC_SMPTE170M
+        heif_transfer_characteristic_ITU_R_BT_601_6,            // AVCOL_TRC_SMPTE240M
+        heif_transfer_characteristic_linear,
+        heif_transfer_characteristic_logarithmic_100,
+        heif_transfer_characteristic_logarithmic_100_sqrt10,
+        heif_transfer_characteristic_IEC_61966_2_4,
+        heif_transfer_characteristic_ITU_R_BT_1361,
+        heif_transfer_characteristic_IEC_61966_2_1,
+        heif_transfer_characteristic_ITU_R_BT_2020_2_10bit,
+        heif_transfer_characteristic_ITU_R_BT_2020_2_12bit,
+        heif_transfer_characteristic_unspecified,               // AVCOL_TRC_SMPTE2084
+        heif_transfer_characteristic_unspecified,               // AVCOL_TRC_SMPTEST2084
+        heif_transfer_characteristic_SMPTE_ST_428_1,
+        heif_transfer_characteristic_SMPTE_ST_428_1,
+        heif_transfer_characteristic_unspecified,               // AVCOL_TRC_ARIB_STD_B67
+    };
+
+    auto frm = curFrm->frm;
+
+    cp->color_primaries = prim[frm->color_primaries];
+    cp->matrix_coefficients = coeff[frm->colorspace];
+
+    if (frm->color_range == AVCOL_RANGE_UNSPECIFIED) {
+        switch(frm->format) {
+            case AV_PIX_FMT_YUVJ420P:
+            case AV_PIX_FMT_YUVJ422P:
+            case AV_PIX_FMT_YUVJ444P:
+                cp->full_range_flag = true;
+                break;
+            case AV_PIX_FMT_YUV420P:
+            case AV_PIX_FMT_YUV422P:
+            case AV_PIX_FMT_YUV444P:
+            case AV_PIX_FMT_YUV410P:
+            case AV_PIX_FMT_YUV411P:
+                cp->full_range_flag = false;
+                break;
+            default:
+                qWarning() << "cannot determine full range flag";
+                cp->full_range_flag = false;
+        }
+    }
+    else
+        cp->full_range_flag = frm->color_range == AVCOL_RANGE_JPEG;
+
+    cp->transfer_characteristics = trans[frm->color_trc];
+    if (cp->transfer_characteristics == heif_transfer_characteristic_unspecified)
+        qWarning() << "unspecified color transfer characteristics for" << frm->color_trc;
+
+    switch(frm->format) {
         case AV_PIX_FMT_YUVJ420P:
+        case AV_PIX_FMT_YUV420P:
             n_channels = 3;
             space = heif_colorspace_YCbCr;
             chroma = heif_chroma_420;
@@ -338,6 +439,7 @@ void VideoProcessor::setHeifColor(heif_colorspace &space, heif_chroma &chroma, i
             heights[2] = heights[1];
             break;
         default:
+            qCritical() << "unexpected pixel format" << curFrm->frm->format;
             n_channels = 0;
             space = heif_colorspace_undefined;
             chroma = heif_chroma_undefined;

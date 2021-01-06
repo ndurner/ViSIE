@@ -45,7 +45,7 @@ protected:
     Frame *curFrm;
 
     void cleanup();
-    void setHeifColor(heif_colorspace &space, heif_chroma &chroma, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[]);
+    void setHeifColor(heif_colorspace &space, heif_chroma &chroma, heif_color_profile_nclx *cp, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[]);
     void processCurrentFrame();
 };
 
