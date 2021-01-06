@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QStandardPaths>
 #include <QGraphicsPixmapItem>
+#include <QKeyEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -12,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    installEventFilter(this);
     connect(&proc, &VideoProcessor::loadSuccess, this, &MainWindow::videoLoaded);
     connect(&proc, &VideoProcessor::loadError, this, &MainWindow::loadFailed);
     connect(&proc, &VideoProcessor::streamLength, this, &MainWindow::setFrames);
@@ -92,6 +94,20 @@ void MainWindow::resizeEvent(QResizeEvent *)
         proc.setDimensions(rect.width(), rect.height());
         proc.present(ui->frameSlider->value());
     }
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
+        auto ev = reinterpret_cast<QKeyEvent *>(event);
+
+        if (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right) {
+            auto pts = proc.presentPrevNext(ev->key() == Qt::Key_Left);
+            ui->frameSlider->setValue(pts);
+        }
+    }
+
+    return false;
 }
 
 void MainWindow::on_actionSave_triggered()

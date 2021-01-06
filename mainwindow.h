@@ -32,5 +32,6 @@ private:
 
     void resetUI();
     void resizeEvent(QResizeEvent *);
+    bool eventFilter(QObject* watched, QEvent* event);
 };
 #endif // MAINWINDOW_H

@@ -1,6 +1,7 @@
 #include "videoprocessor.h"
 
 #include <QDebug>
+#include <QFile>
 #include <memory>
 #include <libheif/heif.h>
 
@@ -90,6 +91,8 @@ void VideoProcessor::loadVideo(QString fn)
     }
 }
 
+
+
 void VideoProcessor::present(uint64_t pts)
 {
     if (!codecCtx) {
@@ -143,32 +146,45 @@ void VideoProcessor::present(uint64_t pts)
         }
     }
 
-    const auto frm = curFrm->frm;
-    if (frm->format == -1) {
-        return;
+    processCurrentFrame();
+}
+
+int VideoProcessor::presentPrevNext(bool prev)
+{
+    if (prev) {
+        present(curFrm->frm->pts - 1);
+    }
+    else {
+        std::unique_ptr<AVPacket, std::function<void(AVPacket *)>> packet(av_packet_alloc(), [] (AVPacket *p) {
+            av_packet_free(&p);
+        });
+
+        curFrm = curFrm->other;
+        bool found = false;
+
+        // is the next frame already available in the decoder?
+        if (avcodec_receive_frame(codecCtx, curFrm->frm) != 0) {
+            // not available, load next packet
+            while (av_read_frame(ctx, packet.get()) == 0) {
+                if (packet->stream_index == videoStrm) {
+                    avcodec_send_packet(codecCtx, packet.get());
+
+                    if (avcodec_receive_frame(codecCtx, curFrm->frm) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        else
+            found = true;
+
+        if (found) {
+           processCurrentFrame();
+        }
     }
 
-    // create RGB image for presentation
-    auto fmt = static_cast<AVPixelFormat>(frm->format);
-    if (!cnvCtx) {
-        cnvCtx = sws_getContext(frm->width, frm->height, fmt, width, height,
-                               AV_PIX_FMT_RGB24, SWS_POINT,
-                               nullptr, nullptr, nullptr);
-        Q_ASSERT(cnvCtx);
-    }
-
-    const uint8_t bytesPerPixel = 24 / 8;
-    const int dstStride[1] = {bytesPerPixel * int(width)};
-    uint8_t *outBuf = new uint8_t[width * height * bytesPerPixel];
-
-    auto actualHeight = sws_scale(cnvCtx, frm->data, frm->linesize, 0,
-                                  frm->height, &outBuf, dstStride);
-
-    emit imgReady(QImage(outBuf, width, actualHeight, *dstStride, QImage::Format_RGB888,
-                         [](void *buf) {
-                            delete [] static_cast<uint8_t *>(buf);
-                         },
-                        outBuf));
+    return curFrm->frm->pts;
 }
 
 void VideoProcessor::saveFrame()
@@ -256,6 +272,36 @@ void VideoProcessor::saveFrame()
         qCritical() << "error writing image:" << err.message;
         return;
     }
+}
+
+void VideoProcessor::processCurrentFrame()
+{
+    const auto frm = curFrm->frm;
+    if (frm->format == -1) {
+        return;
+    }
+
+    // create RGB image for presentation
+    auto fmt = static_cast<AVPixelFormat>(frm->format);
+    if (!cnvCtx) {
+        cnvCtx = sws_getContext(frm->width, frm->height, fmt, width, height,
+                               AV_PIX_FMT_RGB24, SWS_POINT,
+                               nullptr, nullptr, nullptr);
+        Q_ASSERT(cnvCtx);
+    }
+
+    const uint8_t bytesPerPixel = 24 / 8;
+    const int dstStride[1] = {bytesPerPixel * int(width)};
+    uint8_t *outBuf = new uint8_t[width * height * bytesPerPixel];
+
+    auto actualHeight = sws_scale(cnvCtx, frm->data, frm->linesize, 0,
+                                  frm->height, &outBuf, dstStride);
+
+    emit imgReady(QImage(outBuf, width, actualHeight, *dstStride, QImage::Format_RGB888,
+                         [](void *buf) {
+                            delete [] static_cast<uint8_t *>(buf);
+                         },
+                        outBuf));
 }
 
 void VideoProcessor::cleanup()

@@ -28,6 +28,7 @@ signals:
 
 public slots:
     void present(uint64_t pts);
+    int presentPrevNext(bool prev);
     void saveFrame();
 
 protected:
@@ -45,6 +46,7 @@ protected:
 
     void cleanup();
     void setHeifColor(heif_colorspace &space, heif_chroma &chroma, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[]);
+    void processCurrentFrame();
 };
 
 #endif // VIDEOPROCESSOR_H
