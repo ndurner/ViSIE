@@ -30,7 +30,8 @@ LIBS += \
     -lavformat \
     -lavcodec \
     -lswscale \
-    -lheif
+    -lheif \
+    -lexiv2
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

@@ -4,6 +4,7 @@
 #include <QFile>
 #include <memory>
 #include <libheif/heif.h>
+#include <exiv2/exif.hpp>
 
 #include "scopedresource.h"
 
@@ -80,6 +81,10 @@ void VideoProcessor::loadVideo(QString fn)
 
         frmBuf[0].frm = av_frame_alloc();
         frmBuf[1].frm = av_frame_alloc();
+
+        // rotation
+        auto rota = av_dict_get(this->ctx->streams[videoStrm]->metadata, "rotate", nullptr, 0);
+        rotation = rota ? atoi(rota->value) : 0;
 
         // success!
         emit loadSuccess();
@@ -275,6 +280,9 @@ void VideoProcessor::saveFrame()
         return;
     }
 
+    perr = addMeta(hCtx.get(), imgH.get());
+    Q_ASSERT_X(perr.code == 0, "", perr.message);
+
     err = heif_context_write_to_file(hCtx.get(), "/tmp/visie.heic");
     if (err.code != heif_error_Ok) {
         qCritical() << "error writing image:" << err.message;
@@ -292,6 +300,24 @@ void VideoProcessor::processCurrentFrame()
     // create RGB image for presentation
     auto fmt = static_cast<AVPixelFormat>(frm->format);
     if (!cnvCtx) {
+        int srcFrmWidth, srcFrmHeight;
+
+        if (rotation == 0 || rotation == 180) {
+            srcFrmWidth = frm->width;
+            srcFrmHeight = frm->height;
+        }
+        else {
+            srcFrmWidth = frm->height;
+            srcFrmHeight = frm->width;
+        }
+
+        auto wRatio = double(srcFrmWidth) / width;
+        auto hRatio = double(srcFrmHeight) / height;
+        auto ratio = std::max(wRatio, hRatio);
+
+        width = frm->width / ratio;
+        height = frm->height / ratio;
+
         cnvCtx = sws_getContext(frm->width, frm->height, fmt, width, height,
                                AV_PIX_FMT_RGB24, SWS_POINT,
                                nullptr, nullptr, nullptr);
@@ -305,11 +331,59 @@ void VideoProcessor::processCurrentFrame()
     auto actualHeight = sws_scale(cnvCtx, frm->data, frm->linesize, 0,
                                   frm->height, &outBuf, dstStride);
 
-    emit imgReady(QImage(outBuf, width, actualHeight, *dstStride, QImage::Format_RGB888,
+    auto qImg = QImage(outBuf, width, actualHeight, *dstStride, QImage::Format_RGB888,
                          [](void *buf) {
                             delete [] static_cast<uint8_t *>(buf);
                          },
-                        outBuf));
+                        outBuf);
+
+    // apply rotation
+    if (rotation) {
+        QTransform trans;
+
+        trans = trans.translate(qImg.width() / 2, qImg.height() / 2).rotate(rotation);
+        qImg = qImg.transformed(trans);
+    }
+
+    imgReady(qImg);
+}
+
+heif_error VideoProcessor::addMeta(heif_context *ctx, heif_image_handle *hndl)
+{
+    Exiv2::ExifData exif;
+
+    // rotation
+    auto rota = av_dict_get(this->ctx->streams[videoStrm]->metadata, "rotate", nullptr, 0);
+    if (rota) {
+        uint16_t orient = 1;
+
+        switch (atoi(rota->value)) {
+            case 90:
+                orient = 6;
+                break;
+            case 180:
+                orient = 3;
+                break;
+            case 270:
+                orient = 8;
+                break;
+            default:
+                orient = 1;
+        }
+
+        exif["Exif.Image.Orientation"] = orient;
+    }
+
+    Exiv2::ExifParser p;
+    Exiv2::Blob blob;
+    uint8_t pre[] = {'E','x','i','f', 0, 0};
+    uint8_t post[] = {00, 01, 00, 00};
+
+    blob.insert(blob.begin(), pre, pre + sizeof(pre));
+    p.encode(blob, Exiv2::ByteOrder::bigEndian, exif);
+    blob.insert(blob.end(), post, post + sizeof(post));
+
+    return heif_context_add_exif_metadata(ctx, hndl, blob.data(), blob.size());
 }
 
 void VideoProcessor::cleanup()

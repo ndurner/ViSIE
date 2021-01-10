@@ -32,7 +32,7 @@ public slots:
     void saveFrame();
 
 protected:
-    int width, height;
+    int width, height, rotation;
     AVFormatContext* ctx;
     int videoStrm;
     AVCodecContext *codecCtx;
@@ -47,6 +47,7 @@ protected:
     void cleanup();
     void setHeifColor(heif_colorspace &space, heif_chroma &chroma, heif_color_profile_nclx *cp, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[]);
     void processCurrentFrame();
+    heif_error addMeta(heif_context *ctx, heif_image_handle *hndl);
 };
 
 #endif // VIDEOPROCESSOR_H
