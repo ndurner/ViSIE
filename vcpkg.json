@@ -1,0 +1,12 @@
+{
+  "name": "visie",
+  "version-string": "0.0.1",
+  "dependencies": [
+    "libheif",
+    {
+        "name": "exiv2",
+        "features": ["bmff"]
+    },
+    "ffmpeg"
+  ]
+}
