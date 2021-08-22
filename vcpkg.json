@@ -5,8 +5,11 @@
     "libheif",
     {
         "name": "exiv2",
-        "features": ["bmff"]
+        "features": []
     },
-    "ffmpeg"
+    {
+        "name": "ffmpeg",
+        "features": ["avcodec", "avformat", "swresample", "x265", "opencl", "opengl"]
+    }
   ]
 }
