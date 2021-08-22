@@ -2,6 +2,7 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QStandardPaths>
 #include <memory>
 #include <libheif/heif.h>
 #include <exiv2/exif.hpp>
@@ -283,10 +284,18 @@ void VideoProcessor::saveFrame()
     perr = addMeta(hCtx.get(), imgH.get());
     Q_ASSERT_X(perr.code == 0, "", perr.message);
 
-    err = heif_context_write_to_file(hCtx.get(), "/tmp/visie.heic");
+    // determine file name
+    auto loca = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    loca += "/visie.heic";
+
+    // write HEIC
+    err = heif_context_write_to_file(hCtx.get(), loca.toLocal8Bit().constData());
     if (err.code != heif_error_Ok) {
         qCritical() << "error writing image:" << err.message;
         return;
+    }
+    else {
+        qInfo() << "written to: " << loca;
     }
 }
 
