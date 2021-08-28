@@ -36,7 +36,7 @@ void MainWindow::on_actionOpen_triggered()
 
     // file open dialog
     auto fn = QFileDialog::getOpenFileName(this,
-        tr("Open Movie"), stdFolders.at(0), tr("Movie Files (*.mpg *.mpeg *.mov *.mp4)"));
+        tr("Open Movie"), stdFolders.at(0), tr("Movie Files (*.mpg *.mpeg *.mov *.mp4 *.3gp)"));
 
     // load file
     if (! fn.isEmpty()) {
