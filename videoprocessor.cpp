@@ -8,6 +8,7 @@
 #include <exiv2/exif.hpp>
 
 #include "scopedresource.h"
+#include "mediareader.h"
 
 VideoProcessor::VideoProcessor(QObject *parent) : QObject(parent)
 {
@@ -383,6 +384,10 @@ heif_error VideoProcessor::addMeta(heif_context *ctx, heif_image_handle *hndl)
         exif["Exif.Image.Orientation"] = orient;
     }
 
+    // BMFF content
+    MediaReader::extract(this->ctx->pb, &exif);
+
+    // build output
     Exiv2::ExifParser p;
     Exiv2::Blob blob;
     uint8_t pre[] = {'E','x','i','f', 0, 0};

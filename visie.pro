@@ -12,12 +12,14 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     scopedresource.cpp \
-    videoprocessor.cpp
+    videoprocessor.cpp \
+    mediareader.cpp
 
 HEADERS += \
     mainwindow.h \
     scopedresource.h \
-    videoprocessor.h
+    videoprocessor.h \
+    mediareader.h
 
 FORMS += \
     mainwindow.ui
