@@ -1,18 +1,25 @@
 #include "mediareader.h"
 
 #include <QDebug>
+#include <QDateTime>
+#include <exiv2/error.hpp>
 
-void MediaReader::extract(AVIOContext *ctx, Exiv2::ExifData *exifData)
+MediaReader::MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp) :
+    ctx(ctx), md(exifData), targetTrackID(targetTrackID), timeStamp(timeStamp)
+{
+}
+
+void MediaReader::extract()
 {
     if (avio_seek(ctx, 0, AVSEEK_FORCE) != 0)
         return;
 
-    decend(ctx, avio_size(ctx), exifData);
+    decend(ctx, avio_size(ctx));
 
     return;
 }
 
-void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifData *md)
+void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
 {
     while (true) {
         size_t atomSize = avio_rb32(ctx);
@@ -44,11 +51,15 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifData *md
 
         switch(fourCC) {
             case 'moov':
-                decend(ctx, basePos + atomSize, md);
+            case 'trak':
+                decend(ctx, basePos + atomSize);
                 break;
             case 'udta':
                 qInfo() << "udta";
-                handle_udta(ctx, basePos + atomSize, md);
+                handle_udta(ctx, basePos + atomSize);
+                break;
+            case 'tkhd':
+                handle_tkhd(ctx, basePos + atomSize);
                 break;
         }
 
@@ -63,7 +74,7 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifData *md
     }
 }
 
-void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifData *md)
+void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
 {
     while(true) {
         auto itm_size = avio_rb32(ctx);
@@ -107,6 +118,59 @@ void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifDat
         if (avio_tell(ctx) >= rangeEnd)
             break;
     }
+}
+
+void MediaReader::handle_tkhd(AVIOContext *ctx, int64_t rangeEnd)
+{
+    auto pos = avio_tell(ctx);
+    if (pos + 4 > rangeEnd)
+        return;
+
+    // read Tracker Header
+    auto ver = avio_r8(ctx);
+    avio_skip(ctx, 3); // flags
+
+    uint64_t creat, mod;
+    if (ver == 0) {
+        if (pos + 4 + 2 * 4 + 4 > rangeEnd)
+            return;
+
+        creat = avio_rb32(ctx);
+        mod = avio_rb32(ctx);
+    }
+    else if (ver == 1) {
+        if (pos + 4 + 2 * 8 + 4 > rangeEnd)
+            return;
+
+        creat = avio_rb64(ctx);
+        mod = avio_rb64(ctx);
+    }
+    else {
+        return;
+    }
+    auto track = avio_rb32(ctx);
+
+    if (track != targetTrackID)
+        return;
+
+    // add time stamp inside the video to values read
+    double ofs;
+    uint32_t frac = modf(timeStamp, &ofs) * 100;
+    if (creat == mod) {
+        creat += ofs;
+        mod += ofs;
+    }
+    else
+        creat += ofs;
+
+    // add Exif fields
+    (*md)["Exif.Image.DateTime"] = QDateTime::fromString("01011904", "ddMMyyyy").addSecs(mod)
+            .toString("yyyy:MM:dd hh:mm:ss").toStdString();
+    (*md)["Exif.Image.DateTimeOriginal"] = QDateTime::fromString("01011904", "ddMMyyyy").addSecs(creat)
+            .toString("yyyy:MM:dd hh:mm:ss").toStdString();
+    (*md)["Exif.Photo.DateTimeOriginal"] = (*md)["Exif.Image.DateTimeOriginal"];
+    (*md)["Exif.Photo.SubSecTime"] = QString("%1").arg(frac).toStdString();
+    (*md)["Exif.Photo.SubSecTimeOriginal"] = (*md)["Exif.Photo.SubSecTime"];
 }
 
 static_assert('ftyp' == 1718909296);

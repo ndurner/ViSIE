@@ -385,7 +385,11 @@ heif_error VideoProcessor::addMeta(heif_context *ctx, heif_image_handle *hndl)
     }
 
     // BMFF content
-    MediaReader::extract(this->ctx->pb, &exif);
+    auto timeBase = &this->ctx->streams[videoStrm]->time_base;
+    auto timeStamp = double(curFrm->frm->best_effort_timestamp * timeBase->num) / timeBase->den;
+    auto rd = new MediaReader(this->ctx->pb, &exif, this->ctx->streams[videoStrm]->id, timeStamp);
+    rd->extract();
+    delete rd;
 
     // build output
     Exiv2::ExifParser p;

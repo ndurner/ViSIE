@@ -16,13 +16,18 @@ public:
     using MetadataKV = std::tuple<std::string, std::string>;
     using Metadata = std::list<MetadataKV>;
 
-    static void extract(AVIOContext *ctx, Exiv2::ExifData *exifData);
+    MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp);
+    void extract();
 
 private:
-    MediaReader() = delete;
+    AVIOContext *ctx;
+    Exiv2::ExifData *md;
+    uint32_t targetTrackID;
+    double timeStamp;
 
-    static void decend(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifData *md);
-    static void handle_udta(AVIOContext *ctx, int64_t rangeEnd, Exiv2::ExifData *md);
+    void decend(AVIOContext *ctx, int64_t rangeEnd);
+    void handle_udta(AVIOContext *ctx, int64_t rangeEnd);
+    void handle_tkhd(AVIOContext *ctx, int64_t rangeEnd);
 };
 
 #endif // MEDIAREADER_H
