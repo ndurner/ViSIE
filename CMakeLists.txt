@@ -26,6 +26,8 @@ set(PROJECT_SOURCES
     videoprocessor.cpp
     scopedresource.h
     videoprocessor.h
+    mediareader.cpp
+    mediareader.h
 )
 
 qt_add_executable(visie
