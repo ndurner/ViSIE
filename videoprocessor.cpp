@@ -425,8 +425,8 @@ void VideoProcessor::setHeifColor(heif_colorspace &space, heif_chroma &chroma, h
         heif_color_primaries_unspecified,               // AVCOL_PRI_UNSPECIFIED
         heif_color_primaries_unspecified,               // AVCOL_PRI_RESERVED
         heif_color_primaries_ITU_R_BT_470_6_System_B_G, // AVCOL_PRI_BT470BG
-        heif_color_primaries_SMPTE_240M,                // AVCOL_PRI_SMPTE170M
-        heif_color_primaries_SMPTE_240M,                // AVCOL_PRI_SMPTE240M
+        heif_color_primaries_ITU_R_BT_601_6,            // AVCOL_PRI_SMPTE170M
+        heif_color_primaries_ITU_R_BT_601_6,            // AVCOL_PRI_SMPTE240M
         heif_color_primaries_generic_film,              // AVCOL_PRI_FILM
         heif_color_primaries_ITU_R_BT_2020_2_and_2100_0, // AVCOL_PRI_BT2020
         heif_color_primaries_SMPTE_ST_428_1,            // AVCOL_PRI_SMPTE428
@@ -444,8 +444,8 @@ void VideoProcessor::setHeifColor(heif_colorspace &space, heif_chroma &chroma, h
         heif_matrix_coefficients_unspecified,
         heif_matrix_coefficients_US_FCC_T47,
         heif_matrix_coefficients_ITU_R_BT_470_6_System_B_G,
-        heif_matrix_coefficients_SMPTE_240M,
-        heif_matrix_coefficients_SMPTE_240M,
+        heif_matrix_coefficients_ITU_R_BT_601_6,
+        heif_matrix_coefficients_ITU_R_BT_601_6,
         heif_matrix_coefficients_YCgCo,
         heif_matrix_coefficients_YCgCo,
         heif_matrix_coefficients_chromaticity_derived_non_constant_luminance,
