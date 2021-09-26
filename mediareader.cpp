@@ -108,7 +108,7 @@ void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
                 const auto min = floor((decDeg - deg) * 60.0);
                 const auto sec = floor((decDeg - deg - min / 60.0) * 3600.0);
 
-                Exiv2::URationalValue::UniquePtr rv(new Exiv2::URationalValue);
+                std::unique_ptr<Exiv2::URationalValue> rv(new Exiv2::URationalValue);
                 rv->value_.assign({std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1)});
                 md->add(Exiv2::ExifKey(comp.first), rv.get());
             }
