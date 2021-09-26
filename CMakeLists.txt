@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
-find_package(libheif 1.11.0 CONFIG REQUIRED)
+find_package(libheif 1.12.0 CONFIG REQUIRED)
 find_package(exiv2 CONFIG REQUIRED)
 find_package(FFMPEG REQUIRED)
 
