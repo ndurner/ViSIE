@@ -31,16 +31,15 @@ void MainWindow::on_actionOpen_triggered()
 {
     statusBar()->clearMessage();
 
-    // determine video folder
-    auto stdFolders = QStandardPaths::standardLocations(QStandardPaths::StandardLocation::MoviesLocation);
-
     // file open dialog
     auto fn = QFileDialog::getOpenFileName(this,
-        tr("Open Movie"), stdFolders.at(0), tr("Movie Files (*.mpg *.mpeg *.mov *.mp4 *.3gp)"));
+        tr("Open Movie"), curFn, tr("Movie Files (*.mpg *.mpeg *.mov *.mp4 *.3gp)"));
 
     // load file
     if (! fn.isEmpty()) {
         proc.setDimensions(ui->graphicsView->width(), ui->graphicsView->height());
+
+        curFn = fn;
         proc.loadVideo(fn);
     }
 
