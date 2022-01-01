@@ -50,6 +50,7 @@ void MainWindow::videoLoaded()
 {
     statusBar()->showMessage("Video loaded");
 
+    ui->frameSlider->setValue(0);
     proc.present(0);
 }
 
