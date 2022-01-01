@@ -19,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&proc, &VideoProcessor::streamLength, this, &MainWindow::setFrames);
     connect(&proc, &VideoProcessor::imgReady, this, &MainWindow::showImg);
     connect(ui->frameSlider, &QSlider::valueChanged, &proc, &VideoProcessor::present);
+
+    titleBase = windowTitle();
 }
 
 MainWindow::~MainWindow()
@@ -40,6 +42,9 @@ void MainWindow::on_actionOpen_triggered()
         proc.setDimensions(ui->graphicsView->width(), ui->graphicsView->height());
 
         curFn = fn;
+        QFileInfo videoFile(fn);
+        setWindowTitle(titleBase + " - " + videoFile.fileName());
+
         proc.loadVideo(fn);
     }
 
@@ -81,6 +86,7 @@ void MainWindow::showImg(QImage img)
 void MainWindow::resetUI()
 {
     ui->frameSlider->setEnabled(false);
+    setWindowTitle(titleBase);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *)

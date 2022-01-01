@@ -29,6 +29,7 @@ private slots:
 private:
     Ui::MainWindow *ui;
     VideoProcessor proc;
+    QString titleBase;
     QString curFn;
 
     void resetUI();
