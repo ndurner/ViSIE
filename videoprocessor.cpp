@@ -289,6 +289,20 @@ void VideoProcessor::saveFrame()
     auto loca = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     loca += "/visie.heic";
 
+    // make file name unique
+    if (QFile::exists(loca)) {
+        loca = loca.replace("/visie.heic", "/visie-%1.heic");
+        qulonglong cntr = 0;
+        while (true) {
+            auto cand = QString(loca).arg(cntr, 3, 10, QChar('0'));
+            if (!QFile::exists(cand)) {
+                loca = cand;
+                break;
+            }
+            cntr++;
+        }
+    }
+
     // write HEIC
     err = heif_context_write_to_file(hCtx.get(), loca.toLocal8Bit().constData());
     if (err.code != heif_error_Ok) {
