@@ -5,7 +5,8 @@
 #include <exiv2/error.hpp>
 
 MediaReader::MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp) :
-    ctx(ctx), md(exifData), targetTrackID(targetTrackID), timeStamp(timeStamp)
+    ctx(ctx), md(exifData), targetTrackID(targetTrackID), timeStamp(timeStamp), colorPrimaries(2 /* undef */),
+    colorTransfer(2 /* undef */), colorMatrix(2 /* undef */)
 {
 }
 
@@ -17,6 +18,18 @@ void MediaReader::extract()
     decend(ctx, avio_size(ctx));
 
     return;
+}
+
+QString MediaReader::fourCCStr(int fourCC)
+{
+    char fc[5];
+    fc[0] = (fourCC >> 24) & 255;
+    fc[1] = (fourCC >> 16) & 255;
+    fc[2] = (fourCC >> 8) & 255;
+    fc[3] = (fourCC >> 0) & 255;
+    fc[4] = 0;
+
+    return QString::fromLatin1(fc, 4);
 }
 
 void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
@@ -52,6 +65,9 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
         switch(fourCC) {
             case 'moov':
             case 'trak':
+            case 'mdia':
+            case 'minf':
+            case 'stbl':
                 decend(ctx, basePos + atomSize);
                 break;
             case 'udta':
@@ -60,6 +76,12 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
                 break;
             case 'tkhd':
                 handle_tkhd(ctx, basePos + atomSize);
+                break;
+            case 'stsd':
+                handle_stsd(ctx, basePos, basePos + atomSize);
+                break;
+            case 'colr':
+                handle_colr(ctx, basePos + atomSize);
                 break;
         }
 
@@ -171,6 +193,66 @@ void MediaReader::handle_tkhd(AVIOContext *ctx, int64_t rangeEnd)
     (*md)["Exif.Photo.DateTimeOriginal"] = (*md)["Exif.Image.DateTimeOriginal"];
     (*md)["Exif.Photo.SubSecTime"] = QString("%1").arg(frac).toStdString();
     (*md)["Exif.Photo.SubSecTimeOriginal"] = (*md)["Exif.Photo.SubSecTime"];
+}
+
+void MediaReader::handle_stsd(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
+{
+    if (rangeBase + 8 > rangeEnd)
+        return;
+
+    auto ver = avio_r8(ctx);
+    if (ver != 0)
+        return;
+
+    avio_skip(ctx, 3); // flags
+
+    auto entries = avio_rb32(ctx);
+    for (decltype(entries) entry = 0; entry < entries; entry++) {
+        auto size = avio_rb32(ctx);
+        auto fmt = avio_rb32(ctx);
+
+        if (fmt == 'avc1') {
+            handle_avc1(ctx, size);
+        }
+    }
+}
+
+void MediaReader::handle_avc1(AVIOContext *ctx, int64_t atomSize)
+{
+    auto pos = avio_tell(ctx);
+    if (atomSize <= 78)
+        return;
+
+    avio_skip(ctx, 78); // TODO: check entry count https://img-blog.csdn.net/20170205180429644
+    decend(ctx, pos - 8 + atomSize);
+}
+
+void MediaReader::handle_colr(AVIOContext *ctx, int64_t rangeEnd)
+{
+    auto pos = avio_tell(ctx);
+    if (pos + 10 > rangeEnd)
+        return;
+
+    auto paramType = avio_rb32(ctx);
+    if (!(paramType == 'nclc' || paramType == 'nclx'))
+        return;
+
+    colorPrimaries = avio_rb16(ctx);
+    colorTransfer = avio_rb16(ctx);
+    colorMatrix = avio_rb16(ctx);
+
+    qDebug() << "colr type:" << fourCCStr(paramType) << "prim:" << colorPrimaries << "transfer:" <<
+                colorTransfer << "matrix:" << colorMatrix;
+
+    switch (colorPrimaries)
+    {
+        case 1:
+            m_iccFileName = ":/icc/ITU-R_BT709.icc";
+            break;
+        case 9:
+            m_iccFileName = ":/icc/ITU-R_BT2020.icc";
+            break;
+    }
 }
 
 static_assert('ftyp' == 1718909296);

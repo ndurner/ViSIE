@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icc">
+        <file alias="ITU-R_BT2020.icc">ITU-R_BT2020(beta).icc</file>
+        <file alias="ITU-R_BT709.icc">ITU-RBT709ReferenceDisplay.icc</file>
+    </qresource>
+</RCC>
