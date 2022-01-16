@@ -197,6 +197,10 @@ void MediaReader::handle_tkhd(AVIOContext *ctx, int64_t rangeEnd)
 
 void MediaReader::handle_stsd(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
 {
+    // stsd reference:
+    //  https://titanwolf.org/Network/Articles/Article?AID=b97d2313-9919-4a62-b4c5-d29d53b1bf71
+    //  https://img-blog.csdn.net/20170205180429644
+
     if (rangeBase + 8 > rangeEnd)
         return;
 
@@ -229,6 +233,8 @@ void MediaReader::handle_avc1(AVIOContext *ctx, int64_t atomSize)
 
 void MediaReader::handle_colr(AVIOContext *ctx, int64_t rangeEnd)
 {
+    // colr spec: https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html#//apple_ref/doc/uid/TP40000939-CH205-125526
+
     auto pos = avio_tell(ctx);
     if (pos + 10 > rangeEnd)
         return;
@@ -244,6 +250,7 @@ void MediaReader::handle_colr(AVIOContext *ctx, int64_t rangeEnd)
     qDebug() << "colr type:" << fourCCStr(paramType) << "prim:" << colorPrimaries << "transfer:" <<
                 colorTransfer << "matrix:" << colorMatrix;
 
+    // base color profile selection based on primaries, https://forum.doom9.org/showthread.php?t=168424
     switch (colorPrimaries)
     {
         case 1:
