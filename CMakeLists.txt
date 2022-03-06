@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(visie LANGUAGES CXX)
+project(visie)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -28,13 +28,14 @@ set(PROJECT_SOURCES
     videoprocessor.h
     mediareader.cpp
     mediareader.h
+    goproreader.h goproreader.cpp
+    gpmf-parser/GPMF_parser.c
     res.qrc
 )
 
 qt_add_executable(visie
     ${PROJECT_SOURCES}
 )
-
 
 target_link_libraries(visie PRIVATE heif)
 target_link_libraries(visie PRIVATE exiv2lib)
