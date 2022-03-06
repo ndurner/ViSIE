@@ -1,4 +1,5 @@
 #include "mediareader.h"
+#include "goproreader.h"
 
 #include <QDebug>
 #include <QDateTime>
@@ -65,7 +66,6 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
         switch(fourCC) {
             case 'moov':
             case 'trak':
-            case 'mdia':
             case 'minf':
             case 'stbl':
                 decend(ctx, basePos + atomSize);
@@ -82,6 +82,21 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
                 break;
             case 'colr':
                 handle_colr(ctx, basePos + atomSize);
+                break;
+            case 'hdlr':
+                handle_hdlr(ctx, basePos, basePos + atomSize);
+                break;
+            case 'stco':
+                handle_stco(ctx, basePos, basePos + atomSize);
+                break;
+            case 'stsz':
+                handle_stsz(ctx, basePos, basePos + atomSize);
+                break;
+            case 'stts':
+                handle_stts(ctx, basePos, basePos + atomSize);
+                break;
+            case 'mdia':
+                handle_mdia(ctx, basePos, basePos + atomSize);
                 break;
         }
 
@@ -259,6 +274,125 @@ void MediaReader::handle_colr(AVIOContext *ctx, int64_t rangeEnd)
         case 9:
             m_iccFileName = ":/icc/ITU-R_BT2020.icc";
             break;
+    }
+}
+
+void MediaReader::handle_hdlr(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
+{
+    if (rangeBase + 25 > rangeEnd)
+        return;
+
+    avio_skip(ctx, 4);
+    auto comp = avio_rb32(ctx);
+    if (comp != 'mhlr')
+        return;
+
+    auto sub = avio_rb32(ctx);
+    if (sub != 'meta')
+        return;
+
+    avio_skip(ctx, 13);
+    auto len = rangeEnd - rangeBase - 25;
+    QByteArray name(len, Qt::Uninitialized);
+    avio_read(ctx, reinterpret_cast<unsigned char *>(name.data()), len);
+    readingGoProMeta = QString::fromLatin1(name) == "GoPro MET  ";
+}
+
+void MediaReader::handle_stco(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
+{
+    if (rangeBase + 8 > rangeEnd)
+        return;
+
+    if (readingGoProMeta) {
+        avio_skip(ctx, 4);
+        auto entries = avio_rb32(ctx);
+
+        metaTrackSamples.resize(entries);
+
+        for (auto &sample: metaTrackSamples)
+            sample.offset = avio_rb32(ctx);
+    }
+}
+
+void MediaReader::handle_stsz(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
+{
+    if (rangeBase + 8 > rangeEnd)
+        return;
+
+    if (readingGoProMeta) {
+        avio_skip(ctx, 8);
+        auto entries = avio_rb32(ctx);
+
+        metaTrackSamples.resize(entries);
+
+        for (auto &sample: metaTrackSamples)
+            sample.size = avio_rb32(ctx);
+    }
+}
+
+void MediaReader::handle_stts(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
+{
+    if (rangeBase + 8 > rangeEnd)
+        return;
+
+    if (readingGoProMeta) {
+        avio_skip(ctx, 4);
+        auto entries = avio_rb32(ctx);
+
+        decltype(entries) sample = 0;
+        for (decltype(entries) entry = 0; entry < entries; entry++)
+        {
+            auto sampleCount = avio_rb32(ctx);
+            auto sampleDuration = avio_rb32(ctx);
+
+            for (decltype(sampleCount) cntr = 0; cntr < sampleCount; cntr++) {
+                if (sample + 1 > metaTrackSamples.size())
+                    metaTrackSamples.resize(sample + 1);
+
+                metaTrackSamples[sample++].duration = sampleDuration;
+            }
+        }
+    }
+}
+
+void MediaReader::handle_mdia(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
+{
+    readingGoProMeta = false;
+    metaTrackSamples.clear();
+
+    decend(ctx, rangeEnd);
+
+    if (!readingGoProMeta)
+        return;
+
+    uint64_t ts = timeStamp * 1000;
+
+    auto target = metaTrackSamples.end();
+    uint64_t trackTimestmp = 0;
+    for (auto sample = metaTrackSamples.begin(); sample != metaTrackSamples.end(); sample++) {
+        if (ts >= trackTimestmp && ts <= trackTimestmp + sample->duration) {
+            target = sample;
+            break;
+        }
+        trackTimestmp += sample->duration;
+    }
+
+    decltype(ts) timeOffset;
+
+    if (target == metaTrackSamples.end() && metaTrackSamples.size() > 0) {
+        target = metaTrackSamples.end() - 1;
+        timeOffset = 999; // end of last sample
+    }
+    else
+        timeOffset = ts - trackTimestmp;
+
+    if (target != metaTrackSamples.end()) {
+        QByteArray buf(target->size, Qt::Uninitialized);
+        avio_seek(ctx, target->offset, SEEK_SET);
+        avio_read(ctx, reinterpret_cast<unsigned char*>(buf.data()), target->size);
+
+        GoproReader gr(timeOffset, md);
+        gr.extract(buf);
     }
 }
 
