@@ -12,7 +12,7 @@ extern "C" {
 class FileWriter
 {
 public:
-    virtual bool save(AVFrame *frm, std::future<void> &metaDataReady, QString &iccFileName,
+    virtual bool save(AVFrame *frm, QString fileName, std::future<void> &metaDataReady, QString &iccFileName,
                       ColorParams &colr, Exiv2::ExifData &exifData) = 0;
     virtual ~FileWriter() {};
 };

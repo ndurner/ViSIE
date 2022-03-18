@@ -204,8 +204,26 @@ void VideoProcessor::saveFrame()
         extractMeta(exifData, iccFileName, colorParams);
     });
 
+    // determine file name
+    auto loca = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    loca += "/visie.heic";
+
+    // make file name unique
+    if (QFile::exists(loca)) {
+        loca = loca.replace("/visie.heic", "/visie-%1.heic");
+        qulonglong cntr = 0;
+        while (true) {
+            auto cand = QString(loca).arg(cntr, 3, 10, QChar('0'));
+            if (!QFile::exists(cand)) {
+                loca = cand;
+                break;
+            }
+            cntr++;
+        }
+    }
+
     std::unique_ptr<FileWriter> writer(new HeifWriter);
-    writer->save(curFrm->frm, mdTask, iccFileName, colorParams, exifData);
+    writer->save(curFrm->frm, loca, mdTask, iccFileName, colorParams, exifData);
 }
 
 void VideoProcessor::processCurrentFrame()

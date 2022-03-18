@@ -10,7 +10,7 @@ extern "C" {
 class HeifWriter : public FileWriter
 {
 public:
-    bool save(AVFrame *frm, std::future<void> &metaDataReady, QString &iccFileName,
+    bool save(AVFrame *frm, QString fileName, std::future<void> &metaDataReady, QString &iccFileName,
               ColorParams &colr, Exiv2::ExifData &exifData);
 
 protected:

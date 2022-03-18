@@ -6,8 +6,8 @@
 #include <QStandardPaths>
 #include <libheif/heif.h>
 
-bool HeifWriter::save(AVFrame *frm, std::future<void> &metaDataReady, QString &iccFileName, ColorParams &colr,
-                      Exiv2::ExifData &exifData)
+bool HeifWriter::save(AVFrame *frm, QString fileName, std::future<void> &metaDataReady, QString &iccFileName,
+                      ColorParams &colr, Exiv2::ExifData &exifData)
 {
     ScopedResource<heif_context, int> hCtx(
         [](heif_context *&ctx, int &){
@@ -112,32 +112,14 @@ bool HeifWriter::save(AVFrame *frm, std::future<void> &metaDataReady, QString &i
     perr = addMeta(hCtx.get(), imgH.get(), exifData);
     Q_ASSERT_X(perr.code == 0, "", perr.message);
 
-    // determine file name
-    auto loca = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    loca += "/visie.heic";
-
-    // make file name unique
-    if (QFile::exists(loca)) {
-        loca = loca.replace("/visie.heic", "/visie-%1.heic");
-        qulonglong cntr = 0;
-        while (true) {
-            auto cand = QString(loca).arg(cntr, 3, 10, QChar('0'));
-            if (!QFile::exists(cand)) {
-                loca = cand;
-                break;
-            }
-            cntr++;
-        }
-    }
-
     // write HEIC
-    err = heif_context_write_to_file(hCtx.get(), loca.toLocal8Bit().constData());
+    err = heif_context_write_to_file(hCtx.get(), fileName.toLocal8Bit().constData());
     if (err.code != heif_error_Ok) {
         qCritical() << "error writing image:" << err.message;
         return false;
     }
     else {
-        qInfo() << "written to: " << loca;
+        qInfo() << "written to: " << fileName;
     }
 
     return true;
