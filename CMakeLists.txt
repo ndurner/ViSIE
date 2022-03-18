@@ -26,10 +26,13 @@ set(PROJECT_SOURCES
     videoprocessor.cpp
     scopedresource.h
     videoprocessor.h
+    colorparams.h
     mediareader.cpp
     mediareader.h
     goproreader.h goproreader.cpp
     gpmf-parser/GPMF_parser.c
+    filewriter.h filewriter.cpp
+    heifwriter.h heifwriter.cpp
     res.qrc
 )
 

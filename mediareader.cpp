@@ -6,8 +6,7 @@
 #include <exiv2/error.hpp>
 
 MediaReader::MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp) :
-    ctx(ctx), md(exifData), targetTrackID(targetTrackID), timeStamp(timeStamp), colorPrimaries(2 /* undef */),
-    colorTransfer(2 /* undef */), colorMatrix(2 /* undef */)
+    ctx(ctx), md(exifData), targetTrackID(targetTrackID), timeStamp(timeStamp), colorParams({2, 2, 2} /* undef */)
 {
 }
 
@@ -258,23 +257,9 @@ void MediaReader::handle_colr(AVIOContext *ctx, int64_t rangeEnd)
     if (!(paramType == 'nclc' || paramType == 'nclx'))
         return;
 
-    colorPrimaries = avio_rb16(ctx);
-    colorTransfer = avio_rb16(ctx);
-    colorMatrix = avio_rb16(ctx);
-
-    qDebug() << "colr type:" << fourCCStr(paramType) << "prim:" << colorPrimaries << "transfer:" <<
-                colorTransfer << "matrix:" << colorMatrix;
-
-    // base color profile selection based on primaries, https://forum.doom9.org/showthread.php?t=168424
-    switch (colorPrimaries)
-    {
-        case 1:
-            m_iccFileName = ":/icc/ITU-R_BT709.icc";
-            break;
-        case 9:
-            m_iccFileName = ":/icc/ITU-R_BT2020.icc";
-            break;
-    }
+    colorParams.primaries = avio_rb16(ctx);
+    colorParams.transfer = avio_rb16(ctx);
+    colorParams.matrix = avio_rb16(ctx);
 }
 
 void MediaReader::handle_hdlr(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)

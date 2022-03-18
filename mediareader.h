@@ -11,6 +11,8 @@ extern "C" {
 #include <libavformat/avio.h>
 }
 
+#include "colorparams.h"
+
 class MediaReader
 {
 public:
@@ -20,19 +22,14 @@ public:
 
     MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp);
     void extract();
-    QString iccFileName() {return m_iccFileName;};
-    std::tuple<uint16_t, uint16_t, uint16_t> color()
-        {return std::tuple<uint16_t, uint16_t, uint16_t>(colorPrimaries, colorTransfer, colorMatrix);};
+    const ColorParams color() {return colorParams;};
 
 private:
     AVIOContext *ctx;
     Exiv2::ExifData *md;
     uint32_t targetTrackID;
     double timeStamp;
-    QString m_iccFileName;
-    uint16_t colorPrimaries;
-    uint16_t colorTransfer;
-    uint16_t colorMatrix;
+    ColorParams colorParams;
     bool readingGoProMeta;
     std::vector<TrackSample> metaTrackSamples;
 

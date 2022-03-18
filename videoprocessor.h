@@ -4,11 +4,11 @@
 #include <QObject>
 #include <QImage>
 #include <exiv2/exif.hpp>
+#include "colorparams.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
-#include <libheif/heif.h>
 }
 
 class VideoProcessor : public QObject
@@ -46,10 +46,8 @@ protected:
     Frame *curFrm;
 
     void cleanup();
-    void setHeifColor(heif_colorspace &space, heif_chroma &chroma, int &n_channels, heif_channel channels[], int depths[], int widths[], int heights[]);
     void processCurrentFrame();
-    void extractMeta(Exiv2::ExifData &exif, QString &iccFileName, heif_color_profile_nclx &cp);
-    heif_error addMeta(heif_context *ctx, heif_image_handle *hndl, const Exiv2::ExifData &exif);
+    void extractMeta(Exiv2::ExifData &exif, QString &iccFileName, ColorParams &color);
 };
 
 #endif // VIDEOPROCESSOR_H
