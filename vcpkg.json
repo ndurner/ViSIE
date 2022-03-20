@@ -10,6 +10,9 @@
     {
         "name": "ffmpeg",
         "features": ["avcodec", "avformat", "swresample", "x265", "opencl", "opengl"]
+    },
+    {
+        "name": "openjpeg"
     }
   ]
 }

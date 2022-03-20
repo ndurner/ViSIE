@@ -16,6 +16,7 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 find_package(libheif 1.12.0 CONFIG REQUIRED)
 find_package(exiv2 CONFIG REQUIRED)
 find_package(FFMPEG REQUIRED)
+find_package(openjpeg CONFIG REQUIRED)
 
 set(PROJECT_SOURCES
     main.cpp
@@ -33,6 +34,7 @@ set(PROJECT_SOURCES
     gpmf-parser/GPMF_parser.c
     filewriter.h filewriter.cpp
     heifwriter.h heifwriter.cpp
+    jp2writer.h jp2writer.cpp
     res.qrc
 )
 
@@ -42,6 +44,7 @@ qt_add_executable(visie
 
 target_link_libraries(visie PRIVATE heif)
 target_link_libraries(visie PRIVATE exiv2lib)
+target_link_libraries(visie PRIVATE openjp2)
 target_include_directories(visie PRIVATE ${FFMPEG_INCLUDE_DIRS})
 target_link_directories(visie PRIVATE ${FFMPEG_LIBRARY_DIRS})
 target_link_libraries(visie PRIVATE ${FFMPEG_LIBRARIES})
