@@ -3,9 +3,8 @@
 
 #include <QDebug>
 #include <QDateTime>
-#include <exiv2/error.hpp>
 
-MediaReader::MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp) :
+MediaReader::MediaReader(AVIOContext *ctx, ExifData *exifData, int targetTrackID, double timeStamp) :
     ctx(ctx), md(exifData), targetTrackID(targetTrackID), timeStamp(timeStamp), colorParams({2, 2, 2} /* undef */)
 {
 }
@@ -133,8 +132,8 @@ void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
             if (sep == -1)
                 sep = gpsStr.lastIndexOf('+');
 
-            (*md)["Exif.GPSInfo.GPSLatitudeRef"] = gpsStr.startsWith("-") ? "S" : "N";
-            (*md)["Exif.GPSInfo.GPSLongitudeRef"] = gpsStr[sep] == '+' ? "E" : "W";
+            md->add("Exif.GPSInfo.GPSLatitudeRef", gpsStr.startsWith("-") ? "S" : "N");
+            md->add("Exif.GPSInfo.GPSLongitudeRef", gpsStr[sep] == '+' ? "E" : "W");
 
             for (auto comp: {std::make_pair("Exif.GPSInfo.GPSLatitude", gpsStr.left(sep).toDouble()),
                             std::make_pair("Exif.GPSInfo.GPSLongitude", gpsStr.mid(sep).toDouble())})
@@ -144,9 +143,7 @@ void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
                 const auto min = floor((decDeg - deg) * 60.0);
                 const auto sec = floor((decDeg - deg - min / 60.0) * 3600.0);
 
-                std::unique_ptr<Exiv2::URationalValue> rv(new Exiv2::URationalValue);
-                rv->value_.assign({std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1)});
-                md->add(Exiv2::ExifKey(comp.first), rv.get());
+                md->add(comp.first, std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1));
             }
         }
 
@@ -200,13 +197,15 @@ void MediaReader::handle_tkhd(AVIOContext *ctx, int64_t rangeEnd)
         creat += ofs;
 
     // add Exif fields
-    (*md)["Exif.Image.DateTime"] = QDateTime::fromString("01011904", "ddMMyyyy").addSecs(mod)
+    const auto origDate = QDateTime::fromString("01011904", "ddMMyyyy").addSecs(creat)
             .toString("yyyy:MM:dd hh:mm:ss").toStdString();
-    (*md)["Exif.Image.DateTimeOriginal"] = QDateTime::fromString("01011904", "ddMMyyyy").addSecs(creat)
-            .toString("yyyy:MM:dd hh:mm:ss").toStdString();
-    (*md)["Exif.Photo.DateTimeOriginal"] = (*md)["Exif.Image.DateTimeOriginal"];
-    (*md)["Exif.Photo.SubSecTime"] = QString("%1").arg(frac).toStdString();
-    (*md)["Exif.Photo.SubSecTimeOriginal"] = (*md)["Exif.Photo.SubSecTime"];
+    const auto subSecTime = QString("%1").arg(frac).toStdString();
+    md->add("Exif.Image.DateTime", QDateTime::fromString("01011904", "ddMMyyyy").addSecs(mod)
+            .toString("yyyy:MM:dd hh:mm:ss").toStdString());
+    md->add("Exif.Image.DateTimeOriginal", origDate);
+    md->add("Exif.Photo.DateTimeOriginal", origDate);
+    md->add("Exif.Photo.SubSecTime", subSecTime);
+    md->add("Exif.Photo.SubSecTimeOriginal", subSecTime);
 }
 
 void MediaReader::handle_stsd(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)

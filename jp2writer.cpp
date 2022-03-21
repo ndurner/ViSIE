@@ -6,10 +6,9 @@
 #include <execution>
 #include "scopedresource.h"
 #include <openjpeg.h>
-#include <exiv2/image.hpp>
 
 bool Jp2Writer::save(AVFrame *frm, QString fileName, std::future<void> &metaDataReady, QString &iccFileName,
-                     ColorParams &colr, Exiv2::ExifData &exifData)
+                     ColorParams &colr, ExifData &exifData)
 {
     std::vector<opj_image_cmptparm_t> cmptparm;
     opj_cparameters_t encParams;
@@ -110,17 +109,17 @@ bool Jp2Writer::save(AVFrame *frm, QString fileName, std::future<void> &metaData
     }
 
     // metadata
-    auto exiv2 = Exiv2::ImageFactory::open(fileName.toStdString(), false);
+    auto exiv2 = ExifImage(fileName.toStdString());
     metaDataReady.wait();
-    exiv2->setExifData(exifData);
+    exiv2.setExifData(exifData);
     if (!iccFileName.isEmpty()) {
         QFile file(iccFileName);
         file.open(QIODevice::ReadOnly);
         auto ba = file.readAll();
-        Exiv2::DataBuf buf(reinterpret_cast<Exiv2::byte *>(ba.data()), ba.length());
-        exiv2->setIccProfile(buf, false);
+
+        exiv2.setIccProfile(reinterpret_cast<const uint8_t *>(ba.data()), ba.length());
     }
-    exiv2->writeMetadata();
+    exiv2.writeMetadata();
 
     return true;
 }

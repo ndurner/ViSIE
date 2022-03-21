@@ -6,7 +6,7 @@
 #include <list>
 #include <QByteArray>
 #include <QString>
-#include <exiv2/exif.hpp>
+#include "exiv2wrapper/exiv2wrapper.h"
 extern "C" {
 #include <libavformat/avio.h>
 }
@@ -20,13 +20,13 @@ public:
     using Metadata = std::list<MetadataKV>;
     using TrackSample = struct {uint64_t offset; uint64_t size; uint32_t duration;};
 
-    MediaReader(AVIOContext *ctx, Exiv2::ExifData *exifData, int targetTrackID, double timeStamp);
+    MediaReader(AVIOContext *ctx, ExifData *exifData, int targetTrackID, double timeStamp);
     void extract();
     const ColorParams color() {return colorParams;};
 
 private:
     AVIOContext *ctx;
-    Exiv2::ExifData *md;
+    ExifData *md;
     uint32_t targetTrackID;
     double timeStamp;
     ColorParams colorParams;

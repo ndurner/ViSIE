@@ -7,7 +7,7 @@ class Jp2Writer : public FileWriter
 {
 public:
     virtual bool save(AVFrame *frm, QString fileName, std::future<void> &metaDataReady, QString &iccFileName,
-                      ColorParams &colr, Exiv2::ExifData &exifData);
+                      ColorParams &colr, ExifData &exifData);
 };
 
 #endif // JP2WRITER_H

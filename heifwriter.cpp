@@ -7,7 +7,7 @@
 #include <libheif/heif.h>
 
 bool HeifWriter::save(AVFrame *frm, QString fileName, std::future<void> &metaDataReady, QString &iccFileName,
-                      ColorParams &colr, Exiv2::ExifData &exifData)
+                      ColorParams &colr, ExifData &exifData)
 {
     ScopedResource<heif_context, int> hCtx(
         [](heif_context *&ctx, int &){
@@ -218,17 +218,11 @@ void HeifWriter::setColorProfile(heif_color_profile_nclx *cp, ColorParams &color
     cp->full_range_flag = true;
 }
 
-heif_error HeifWriter::addMeta(heif_context *ctx, heif_image_handle *hndl, const Exiv2::ExifData &exif)
+heif_error HeifWriter::addMeta(heif_context *ctx, heif_image_handle *hndl, const ExifData &exif)
 {
     // build output
-    Exiv2::ExifParser p;
-    Exiv2::Blob blob;
-    uint8_t pre[] = {'E','x','i','f', 0, 0};
-    uint8_t post[] = {00, 01, 00, 00};
-
-    blob.insert(blob.begin(), pre, pre + sizeof(pre));
-    p.encode(blob, Exiv2::ByteOrder::bigEndian, exif);
-    blob.insert(blob.end(), post, post + sizeof(post));
+    std::vector<uint8_t> blob;
+    ExifSerializer::serialize(exif, blob);
 
     return heif_context_add_exif_metadata(ctx, hndl, blob.data(), blob.size());
 }

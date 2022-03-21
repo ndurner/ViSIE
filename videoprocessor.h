@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QImage>
-#include <exiv2/exif.hpp>
+#include "exiv2wrapper/exiv2wrapper.h"
 #include "colorparams.h"
 
 extern "C" {
@@ -47,7 +47,7 @@ protected:
 
     void cleanup();
     void processCurrentFrame();
-    void extractMeta(Exiv2::ExifData &exif, QString &iccFileName, ColorParams &color);
+    void extractMeta(ExifData &exif, QString &iccFileName, ColorParams &color);
 };
 
 #endif // VIDEOPROCESSOR_H

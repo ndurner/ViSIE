@@ -197,7 +197,7 @@ int VideoProcessor::presentPrevNext(bool prev)
 
 void VideoProcessor::saveFrame()
 {
-    Exiv2::ExifData exifData;
+    ExifData exifData;
     QString iccFileName;
     ColorParams colorParams;
     auto mdTask = std::async(std::launch::async, [&]() {
@@ -288,7 +288,7 @@ void VideoProcessor::processCurrentFrame()
     //--
 }
 
-void VideoProcessor::extractMeta(Exiv2::ExifData &exif, QString &iccFileName,
+void VideoProcessor::extractMeta(ExifData &exif, QString &iccFileName,
                                  ColorParams &color)
 {
     // rotation
@@ -310,7 +310,7 @@ void VideoProcessor::extractMeta(Exiv2::ExifData &exif, QString &iccFileName,
                 orient = 1;
         }
 
-        exif["Exif.Image.Orientation"] = orient;
+        exif.add("Exif.Image.Orientation", orient);
     }
 
     // BMFF content

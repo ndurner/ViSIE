@@ -6,7 +6,7 @@
 #include <memory>
 #include <QDateTime>
 
-GoproReader::GoproReader(uint32_t timeStamp, Exiv2::ExifData *exifData) :
+GoproReader::GoproReader(uint32_t timeStamp, ExifData *exifData) :
      begin(GPMF_stream()), timeStamp(timeStamp), exifData(exifData)
 {
 }
@@ -79,18 +79,18 @@ bool GoproReader::handleGPS()
 
         // GPS lat/lon reference
         if (gps.lon < 0) {
-            (*exifData)["Exif.GPSInfo.GPSLatitudeRef"] = "S";
+            exifData->add("Exif.GPSInfo.GPSLatitudeRef", "S");
             gps.lon *= -1;
         }
         else
-            (*exifData)["Exif.GPSInfo.GPSLatitudeRef"] = "N";
+            exifData->add("Exif.GPSInfo.GPSLatitudeRef", "N");
 
         if (gps.lat < 0) {
-            (*exifData)["Exif.GPSInfo.GPSLongitudeRef"] = "W";
+            exifData->add("Exif.GPSInfo.GPSLongitudeRef", "W");
             gps.lat *= -1;
         }
         else
-            (*exifData)["Exif.GPSInfo.GPSLongitudeRef"] = "E";
+            exifData->add("Exif.GPSInfo.GPSLongitudeRef", "E");
 
         // GPS lat/lon
         for (auto comp: {std::make_pair("Exif.GPSInfo.GPSLatitude", ((float) gps.lat) / scal.lat),
@@ -101,29 +101,25 @@ bool GoproReader::handleGPS()
             const auto min = floor((decDeg - deg) * 60.0);
             const auto sec = floor((decDeg - deg - min / 60.0) * 3600.0);
 
-            std::unique_ptr<Exiv2::URationalValue> rv(new Exiv2::URationalValue);
-            rv->value_.assign({std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1)});
-            exifData->add(Exiv2::ExifKey(comp.first), rv.get());
+            exifData->add(comp.first, std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1));
         }
 
         // GPS altitude
         if (gps.alt < 0) {
-            (*exifData)["Exif.GPSInfo.GPSAltitudeRef"] = 1; // below sea level
+            exifData->add("Exif.GPSInfo.GPSAltitudeRef", 1); // below sea level
             gps.alt *= -1;
         }
         else
-            (*exifData)["Exif.GPSInfo.GPSAltitudeRef"] = 0; // above sea level
+            exifData->add("Exif.GPSInfo.GPSAltitudeRef", 0); // above sea level
 
-        Exiv2::URational alt(gps.alt, scal.alt);
-        (*exifData)["Exif.GPSInfo.GPSAltitude"] = alt;
+        exifData->add("Exif.GPSInfo.GPSAltitude", gps.alt, scal.alt);
 
         // GPS speed
         if (gps.speed2 > 0) {
             // convert m/s to km/h.
             // mulitply by 60 * 60, 1000 is shortened to 36, 10
-            Exiv2::URational speed(gps.speed2 * 36, scal.speed2 * 10);
-            (*exifData)["Exif.GPSInfo.GPSSpeed"] = speed;
-            (*exifData)["Exif.GPSInfo.GPSSpeedRef"] = "K";
+            exifData->add("Exif.GPSInfo.GPSSpeed", gps.speed2 * 36, scal.speed2 * 10);
+            exifData->add("Exif.GPSInfo.GPSSpeedRef", "K");
         }
 
         return true;
@@ -150,8 +146,7 @@ void GoproReader::handleDOP()
         // get DOP
         unsigned short dop;
         GPMF_FormattedData(&strm, &dop, sizeof(dop), 0, 1);
-        Exiv2::URational gpsDOP(dop, scal);
-        (*exifData)["Exif.GPSInfo.GPSDOP"] = gpsDOP;
+        exifData->add("Exif.GPSInfo.GPSDOP", dop, scal);
     }
 }
 
@@ -169,8 +164,8 @@ void GoproReader::handleGPSTime()
         auto date = QDateTime::fromString(dateStr, "yyMMddhhmmss.zzz");
 
         if (date.isValid()) {
-            (*exifData)["Exif.GPSInfo.GPSDateStamp"] = date.toString("yyyy:MM:dd").toLatin1().data();
-            (*exifData)["Exif.GPSInfo.GPSTimeStamp"] = date.toString("hh:mm:ss").toLatin1().data();
+            exifData->add("Exif.GPSInfo.GPSDateStamp", date.toString("yyyy:MM:dd").toLatin1().data());
+            exifData->add("Exif.GPSInfo.GPSTimeStamp", date.toString("hh:mm:ss").toLatin1().data());
         }
     }
 }
@@ -185,8 +180,8 @@ void GoproReader::handleDeviceName()
         GPMF_FormattedData(&begin, buf.data(), buf.capacity(), 0, repeats);
         auto model = QString::fromLatin1(buf).toStdString();
 
-        (*exifData)["Exif.Image.Make"] = "GoPro";
-        (*exifData)["Exif.Image.Model"] = model;
+        exifData->add("Exif.Image.Make", "GoPro");
+        exifData->add("Exif.Image.Model", model);
     }
 }
 
@@ -198,7 +193,7 @@ void GoproReader::extract(QByteArray &data)
     // GPS
     if (gpsFix()) {
         if (handleGPS())
-            (*exifData)["Exif.GPSInfo.GPSProcessingMethod"] = "GPS";
+            exifData->add("Exif.GPSInfo.GPSProcessingMethod", "GPS");
 
         handleDOP();
         handleGPSTime();
