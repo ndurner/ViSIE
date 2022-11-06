@@ -129,20 +129,20 @@ void MediaReader::decend(AVIOContext *ctx, int64_t rangeEnd)
 void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
 {
     while(true) {
-        auto itm_size = avio_rb32(ctx);
-        auto itm_type = avio_rb32(ctx);
-
         auto basePos = avio_tell(ctx);
 
-        if (itm_type == static_cast<uint32_t>('\xa9xyz')) {
+        auto itm_size = avio_rb32(ctx);
+        auto itm_type = static_cast<uint32_t>(avio_rb32(ctx));
+
+        if (itm_type == 0xA978797A /* xyz */) {
             // GPS
 
             auto str_size = avio_rb16(ctx);
             avio_skip(ctx, 2); // language
 
-            unsigned char *gps = new unsigned char[str_size];
-            avio_read(ctx, gps, str_size);
-            auto gpsStr = QString::fromLatin1(QByteArray::fromRawData((const char *) gps, str_size));
+            std::string gps(str_size + 1, '\0');
+            avio_read(ctx, (unsigned char *) gps.data(), str_size);
+            auto gpsStr = QString::fromLatin1(gps.data(), gps.find('\0'));
             if (gpsStr.endsWith("/"))
                 gpsStr.chop(1);
             auto sep = gpsStr.lastIndexOf('-');
