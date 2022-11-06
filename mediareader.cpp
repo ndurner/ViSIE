@@ -151,6 +151,22 @@ void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
 
             gps2Exif(md, gpsStr.left(sep), gpsStr.mid(sep));
         }
+        else if (itm_type == 0xA96D646C /* mdl */ || itm_type == 0xA963736E /* csn */)
+        {
+            // model, serial
+            const auto strSize = itm_size - sizeof(itm_type);
+            std::string str(strSize + 1, 0);
+            avio_read(ctx, (unsigned char *) str.data(), strSize);
+            str.resize(str.find('\0'));
+
+            std::string key;
+            if (itm_type == 0xA96D646C /* mdl */)
+                key = "Exif.Image.Model";
+            else if (itm_type == 0xA963736E /* csn */)
+                key = "Exif.Image.CameraSerialNumber";
+
+            md->add(key, str);
+        }
 
         avio_seek(ctx, basePos + itm_size, SEEK_SET);
         if (avio_tell(ctx) >= rangeEnd)
