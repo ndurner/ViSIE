@@ -298,9 +298,20 @@ void MediaReader::handle_hdlr(AVIOContext *ctx, int64_t rangeBase, int64_t range
 
     avio_skip(ctx, 13);
     auto len = rangeEnd - rangeBase - 25;
-    QByteArray name(len, Qt::Uninitialized);
+    QByteArray name(len + 1, '\0');
     avio_read(ctx, reinterpret_cast<unsigned char *>(name.data()), len);
-    readingGoProMeta = QString::fromLatin1(name) == "GoPro MET  ";
+    auto handler = QString::fromLatin1(name.constData(), name.indexOf('\0'));
+
+    if (handler == "GoPro MET  ") {
+        readingGoProMeta = true;
+    }
+    else {
+        readingGoProMeta = false;
+
+        if (handler == "DJI.Meta") {
+            md->add("Exif.Image.Make", "DJI");
+        }
+    }
 }
 
 void MediaReader::handle_stco(AVIOContext *ctx, int64_t rangeBase, int64_t rangeEnd)
