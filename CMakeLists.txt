@@ -36,7 +36,7 @@ set(PROJECT_SOURCES
     exiv2wrapper/exiv2wrapper.h
     filewriter.h filewriter.cpp
     heifwriter.h heifwriter.cpp
-    jp2writer.h jp2writer.cpp
+#    jp2writer.h jp2writer.cpp
     res.qrc
 )
 
