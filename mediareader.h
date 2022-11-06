@@ -23,6 +23,7 @@ public:
     MediaReader(AVIOContext *ctx, ExifData *exifData, int targetTrackID, double timeStamp);
     void extract();
     const ColorParams color() {return colorParams;};
+    static void gps2Exif(ExifData *exifData, QString lat, QString lon);
 
 private:
     AVIOContext *ctx;

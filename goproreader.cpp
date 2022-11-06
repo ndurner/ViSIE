@@ -106,11 +106,11 @@ bool GoproReader::handleGPS()
 
         // GPS altitude
         if (gps.alt < 0) {
-            exifData->add("Exif.GPSInfo.GPSAltitudeRef", 1); // below sea level
+            exifData->add("Exif.GPSInfo.GPSAltitudeRef", uint16_t(1)); // below sea level
             gps.alt *= -1;
         }
         else
-            exifData->add("Exif.GPSInfo.GPSAltitudeRef", 0); // above sea level
+            exifData->add("Exif.GPSInfo.GPSAltitudeRef", uint16_t(0)); // above sea level
 
         exifData->add("Exif.GPSInfo.GPSAltitude", gps.alt, scal.alt);
 

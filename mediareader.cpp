@@ -19,6 +19,23 @@ void MediaReader::extract()
     return;
 }
 
+void MediaReader::gps2Exif(ExifData *exifData, QString lat, QString lon)
+{
+    exifData->add("Exif.GPSInfo.GPSLatitudeRef", lat[0] == '-' ? "S" : "N");
+    exifData->add("Exif.GPSInfo.GPSLongitudeRef", lon[0] == '-' ? "W" : "E");
+
+    for (auto comp: {std::make_pair("Exif.GPSInfo.GPSLatitude", lat.toDouble()),
+                    std::make_pair("Exif.GPSInfo.GPSLongitude", lon.toDouble())})
+    {
+        const auto decDeg = comp.second;
+        const auto deg = floor(decDeg);
+        const auto min = floor((decDeg - deg) * 60.0);
+        const auto sec = floor((decDeg - deg - min / 60.0) * 3600.0);
+
+        exifData->add(comp.first, std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1));
+    }
+}
+
 QString MediaReader::fourCCStr(int fourCC)
 {
     char fc[5];
@@ -132,19 +149,7 @@ void MediaReader::handle_udta(AVIOContext *ctx, int64_t rangeEnd)
             if (sep == -1)
                 sep = gpsStr.lastIndexOf('+');
 
-            md->add("Exif.GPSInfo.GPSLatitudeRef", gpsStr.startsWith("-") ? "S" : "N");
-            md->add("Exif.GPSInfo.GPSLongitudeRef", gpsStr[sep] == '+' ? "E" : "W");
-
-            for (auto comp: {std::make_pair("Exif.GPSInfo.GPSLatitude", gpsStr.left(sep).toDouble()),
-                            std::make_pair("Exif.GPSInfo.GPSLongitude", gpsStr.mid(sep).toDouble())})
-            {
-                const auto decDeg = comp.second;
-                const auto deg = floor(decDeg);
-                const auto min = floor((decDeg - deg) * 60.0);
-                const auto sec = floor((decDeg - deg - min / 60.0) * 3600.0);
-
-                md->add(comp.first, std::make_pair(deg, 1), std::make_pair(min, 1), std::make_pair(sec, 1));
-            }
+            gps2Exif(md, gpsStr.left(sep), gpsStr.mid(sep));
         }
 
         avio_seek(ctx, basePos + itm_size, SEEK_SET);

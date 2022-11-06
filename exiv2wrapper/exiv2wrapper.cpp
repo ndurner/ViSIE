@@ -56,6 +56,11 @@ void ExifData::add(const std::string &key, unsigned long val1, unsigned long val
     (*d_ptr->data)[key] = v;
 }
 
+void ExifData::add(const std::string &key, float val)
+{
+    (*d_ptr->data)[key] = Exiv2::floatToRationalCast(val);
+}
+
 ExifImage::ExifImage(const std::string &path) : d_ptr(new ExifImageImpl(path))
 {
 }

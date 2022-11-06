@@ -16,6 +16,7 @@ public:
     void add(const std::string &key, std::pair<unsigned int, unsigned int> val1,
              std::pair<unsigned int, unsigned int> val2, std::pair<unsigned int, unsigned int> val3);
     void add(const std::string &key, unsigned long val1, unsigned long val2);
+    void add(const std::string &key, float val);
 
 private:
     class ExifDataImpl *d_ptr;
