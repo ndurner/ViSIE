@@ -3,6 +3,8 @@
 #include <QDebug>
 #include <QFile>
 #include <QStandardPaths>
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
 #include <memory>
 #include <future>
 #include <libheif/heif.h>
@@ -69,6 +71,14 @@ void VideoProcessor::loadVideo(QString fn)
                 throw QString("Video stream not found: unknown error");
         }
 
+        AVCodec *subCodec = nullptr;
+        subStrm = av_find_best_stream(ctx, AVMEDIA_TYPE_SUBTITLE, -1, -1, &subCodec, 0);
+        subCodecCtx = avcodec_alloc_context3(subCodec);
+        avcodec_parameters_to_context(subCodecCtx, ctx->streams[subStrm]->codecpar);
+
+        if (avcodec_open2(subCodecCtx, subCodec, nullptr) < 0)
+            qDebug() << QString("cannot open sub codec {0}").arg(subCodec->long_name);
+
         // report number of frames
         emit streamLength(ctx->streams[videoStrm]->duration);
 
@@ -99,7 +109,17 @@ void VideoProcessor::loadVideo(QString fn)
     }
 }
 
+QString fcs(int fourCC)
+{
+    char fc[5];
+    fc[0] = (fourCC >> 24) & 255;
+    fc[1] = (fourCC >> 16) & 255;
+    fc[2] = (fourCC >> 8) & 255;
+    fc[3] = (fourCC >> 0) & 255;
+    fc[4] = 0;
 
+    return QString::fromLatin1(fc, 4);
+}
 
 void VideoProcessor::present(uint64_t pts)
 {
@@ -152,6 +172,9 @@ void VideoProcessor::present(uint64_t pts)
                 }
             }
         }
+        else if (ctx->streams[packet->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+            acquireSubtitle(packet.get());
+        }
     }
 
     processCurrentFrame();
@@ -181,6 +204,9 @@ int VideoProcessor::presentPrevNext(bool prev)
                         found = true;
                         break;
                     }
+                }
+                else if (packet->stream_index == subStrm) {
+                    acquireSubtitle(packet.get());
                 }
             }
         }
@@ -219,6 +245,28 @@ void VideoProcessor::saveFrame()
                 break;
             }
             cntr++;
+        }
+    }
+
+    // check subs for DJI metadata
+    QRegularExpression exp(".+F/([^,]+), SS ([^,]+), ISO ([^,]+), EV ([^,]+), DZOOM ([^,]+), "
+                           "GPS \\(([^,]+), ([^,]+), ([^,]+)\\), D ([^,]+), H ([^,]+), H.S ([^,]+), "
+                           "V.S ([^,]+) ");
+    auto match = exp.match(subTitle);
+    if (match.hasMatch()) {
+        mdTask.wait();
+
+        MediaReader::gps2Exif(&exifData, match.captured(7), match.captured(6));
+        exifData.add("Exif.Image.ApertureValue", log2f(pow(match.captured(1).toFloat(), 2))); // unit: APEX
+        exifData.add("Exif.Image.ShutterSpeedValue", log2f(1.0 / match.captured(2).toFloat())); // unit: APEX
+        exifData.add("Exif.Photo.ISOSpeed", (uint16_t) match.captured(3).toUInt());
+        exifData.add("Exif.Image.ExposureBiasValue", match.captured(4).toFloat());
+        exifData.add("Exif.Photo.DigitalZoomRatio", match.captured(5).toFloat());
+
+        auto speed = match.captured(12);
+        if (speed.endsWith("m/s")) {
+            exifData.add("Exif.GPSInfo.GPSSpeedRef", "K");
+            exifData.add("Exif.GPSInfo.GPSSpeed", speed.toFloat() * 60.0f / 1000.0f);
         }
     }
 
@@ -286,6 +334,18 @@ void VideoProcessor::processCurrentFrame()
     // --
     qDebug() << "prim:" << frm->color_primaries << "spc" << frm->colorspace << "trns" << frm->color_trc;
     //--
+}
+
+void VideoProcessor::acquireSubtitle(AVPacket *pkt)
+{
+    AVSubtitle sub;
+    int gotSub;
+
+    auto len = avcodec_decode_subtitle2(subCodecCtx, &sub, &gotSub, pkt);
+    if (len > 0 && gotSub && sub.num_rects > 0) {
+        subTitle = sub.rects[0]->ass;
+        avsubtitle_free(&sub);
+    }
 }
 
 void VideoProcessor::extractMeta(ExifData &exif, QString &iccFileName,

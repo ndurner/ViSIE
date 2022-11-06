@@ -35,9 +35,10 @@ public slots:
 protected:
     int width, height, rotation;
     AVFormatContext* ctx;
-    int videoStrm;
-    AVCodecContext *codecCtx;
+    int videoStrm, subStrm;
+    AVCodecContext *codecCtx, *subCodecCtx;
     SwsContext *cnvCtx;
+    QString subTitle;
 
     struct Frame {
         AVFrame *frm;
@@ -47,6 +48,7 @@ protected:
 
     void cleanup();
     void processCurrentFrame();
+    void acquireSubtitle(AVPacket *pkt);
     void extractMeta(ExifData &exif, QString &iccFileName, ColorParams &color);
 };
 
