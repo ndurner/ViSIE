@@ -73,11 +73,13 @@ void VideoProcessor::loadVideo(QString fn)
 
         AVCodec *subCodec = nullptr;
         subStrm = av_find_best_stream(ctx, AVMEDIA_TYPE_SUBTITLE, -1, -1, &subCodec, 0);
-        subCodecCtx = avcodec_alloc_context3(subCodec);
-        avcodec_parameters_to_context(subCodecCtx, ctx->streams[subStrm]->codecpar);
+        if (subStrm > 0) {
+            subCodecCtx = avcodec_alloc_context3(subCodec);
+            avcodec_parameters_to_context(subCodecCtx, ctx->streams[subStrm]->codecpar);
 
-        if (avcodec_open2(subCodecCtx, subCodec, nullptr) < 0)
-            qDebug() << QString("cannot open sub codec {0}").arg(subCodec->long_name);
+            if (avcodec_open2(subCodecCtx, subCodec, nullptr) < 0)
+                qDebug() << QString("cannot open sub codec {0}").arg(subCodec->long_name);
+        }
 
         // report number of frames
         emit streamLength(ctx->streams[videoStrm]->duration);
