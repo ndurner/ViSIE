@@ -5,6 +5,12 @@ ViSIE is a work-in-progress tool for extracting high-quality still images from v
 ## Features
 
 - Extract still frames from video files as HEIC/HEIF images
+- Superior color fidelity compared to PNG snapshots:
+  - Preserves extended-range YUV values directly from the source video
+  - Avoids conversions to RGB, preventing rounding and clamping of color data
+  - Retains the original color space and related metadata
+- Suitable for HDR or advanced post-processing workflows:
+  - Preserved extended-range data can serve as a richer starting point for HDR editing software
 - Lossless image compression (when supported by hardware)
 - Preserves video metadata in extracted stills
 - Special support for:
@@ -40,9 +46,9 @@ ViSIE is a work-in-progress tool for extracting high-quality still images from v
 
 1. Launch ViSIE
 2. Open a video file (File -> Open)
-3. Use the timeline slider or arrow keys to navigate to desired frame
+3. Use the timeline slider or arrow keys to navigate to the desired frame
 4. Save the current frame (File -> Save or Ctrl+S)
-5. Find save image in the Pictures folder
+5. Find the saved image in the Pictures folder
 
 ## Metadata Support
 
@@ -73,7 +79,7 @@ Additional metadata preserved for all sources:
 ## Current Limitations
 
 - Work in progress, expect bugs and incomplete features
-- Saved files are currently named visie-000 through visie-999
+- Saved files are currently named `visie-000` through `visie-999`
 - Some stability issues when handling external storage devices
 
 ## License
