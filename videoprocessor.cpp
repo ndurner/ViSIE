@@ -51,7 +51,7 @@ void VideoProcessor::loadVideo(QString fn)
     ctx = avformat_alloc_context();
 
     try {
-        AVCodec *videoCodec;
+        const AVCodec *videoCodec;
 
         // open file
         if (avformat_open_input(&ctx, fn.toLocal8Bit(), NULL, NULL) != 0)
@@ -71,7 +71,7 @@ void VideoProcessor::loadVideo(QString fn)
                 throw QString("Video stream not found: unknown error");
         }
 
-        AVCodec *subCodec = nullptr;
+        const AVCodec *subCodec = nullptr;
         subStrm = av_find_best_stream(ctx, AVMEDIA_TYPE_SUBTITLE, -1, -1, &subCodec, 0);
         if (subStrm > 0) {
             subCodecCtx = avcodec_alloc_context3(subCodec);

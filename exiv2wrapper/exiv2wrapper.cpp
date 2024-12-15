@@ -20,7 +20,7 @@ public:
     {
     }
 
-    Exiv2::Image::AutoPtr img;
+    Exiv2::Image::UniquePtr img;
 };
 
 ExifData::ExifData() : d_ptr(new ExifDataImpl())
@@ -77,8 +77,7 @@ void ExifImage::setExifData(const ExifData &data)
 
 void ExifImage::setIccProfile(const uint8_t *data, const size_t len)
 {
-    Exiv2::DataBuf buf(data, len);
-    d_ptr->img->setIccProfile(buf, false);
+    d_ptr->img->setIccProfile(Exiv2::DataBuf(data, len), false);
 }
 
 void ExifImage::writeMetadata()
